@@ -385,13 +385,100 @@ protected final boolean tryAcquire(int acquires) {
 
 
 
+===读写锁===
+1.读写锁在同一时刻可以允许多个读线程访问，但是在写线程访问时，所有读写线程和其他写线程均被阻塞。
+2.读写锁维护了一对锁，一个读锁和一个写锁，通过分离读锁和写锁，使得并发性相比一般的排他锁有了很大的提升。
+3.除了保证写操作对读操作的可见性以及并发性的提升之外，读写锁能够简化读写交互场景的编程方式。
+4.Java并发包中提供读写锁的实现是ReentrantReadWriteLock.它提供的特性如下：
+a.公平性选择：支持非公平（默认）和公平的锁获取方式，吞吐量还是非公平优于公平
+b.重进入：该锁支持重进入，
+c.锁降级：遵循获取写锁，获取读锁再释放写锁的次序，写锁能够降级成为读锁
+5.ReadWriteLock仅定义了获取读锁和写锁的两个方法，即readLock()方法和writeLock()方法，而其实现——ReentrantReadWriteLock。
+6.通过一个缓存示例说明读写锁的使用方式Cache.java
 
 
+==读写锁的实现分析==
+1.读写状态设计
+将同步状态”按位切割使用“，读写锁将变量切分成两个部分，高16位表示读，低16位表示写。
+假设当前同步状态值为S,则
+写状态：S & 0X0000FFFF(将高16位全部抹去)
+读状态：S >>> 16(无符号补0右移16位)
+当写状态增加1时等于S+1
+当读状态增加1时等于S+(1<<16),也就是S+0X00010000
+根据状态的划分得出一个结论：S不等于0时，当写状态（S&0X0000FFFF）等于0时，读状态(S>>>16)大于0，即读锁已被获取
+
+==写锁的获取与释放==
+获取
+protected final boolean tryAcquire(int acquires) {
+            /*
+             * Walkthrough:
+             * 1. If read count nonzero or write count nonzero
+             *    and owner is a different thread, fail.
+             * 2. If count would saturate, fail. (This can only
+             *    happen if count is already nonzero.)
+             * 3. Otherwise, this thread is eligible for lock if
+             *    it is either a reentrant acquire or
+             *    queue policy allows it. If so, update state
+             *    and set owner.
+             */
+            Thread current = Thread.currentThread();
+            int c = getState();
+            int w = exclusiveCount(c);
+            if (c != 0) {
+                // (Note: if c != 0 and w == 0 then shared count != 0)
+                if (w == 0 || current != getExclusiveOwnerThread())
+                    return false;
+                if (w + exclusiveCount(acquires) > MAX_COUNT)
+                    throw new Error("Maximum lock count exceeded");
+                // Reentrant acquire
+                setState(c + acquires);
+                return true;
+            }
+            if (writerShouldBlock() ||
+                !compareAndSetState(c, c + acquires))
+                return false;
+            setExclusiveOwnerThread(current);
+            return true;
+        }
+
+释放与ReentrantLock的释放过程基本类似
+
+==读锁的获取与释放==
+==锁降级==
+1.锁降级指的是写锁降级成为读锁，如果当前线程拥有写锁，然后将其释放，最后再获取读锁，这种分段完成的过程不能称为锁降级。
+public void processData() {
+    readLock.lock();
+    if(!update) {
+        //必须先释放读锁
+        readLock.unlock();
+        //锁降级从写锁获取到开始
+        writeLock.lock();
+        try {
+            if(!update) {
+                //准备数据的流程(略)
+            }
+            readLock.lock();
+        } finally {
+            writeLock.unlock();
+        }
+        //锁降级完成，写锁降级为读锁
+    }
+
+    try {
+        //使用数据的流程(略)
+    } finally {
+        readLock.unlock();
+    }
+
+}
+2.锁降级中读锁的获取是否必要呢？答案：是必要的。主要是为了保证数据的可见性，如果当前线程不获取读锁而是直接释放写锁，假设此刻另一个线程
+（记作线程T）获取了写锁并修改了数据，那么当前线程无法感知线程T的数据更新。如果当前线程获取读锁，即遵循锁降级的步骤，则线程T将会被阻塞，
+直到当前线程使用数据并释放读锁之后，线程T才能获取写锁进行数据更新
+3.ReentrantReadWriteLock不支持锁升级（把持读锁、获取写锁，最后释放读锁的过程）。目的也是保证数据可见性。如果读锁已被多个线程获取，
+其中任意线程成功获取了写锁并更新数据，则其更新对其他获取到读锁的线程是不可见的。
 
 
-
-
-
+===LockSupport工具===
 
 
 
