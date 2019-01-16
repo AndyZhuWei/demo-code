@@ -3,7 +3,7 @@ package com.example.demo.singleton;
 /**
  * @Author: zhuwei
  * @Date:2018/12/10 16:57
- * @Description: 饿汉式单例
+ * @Description: 饿汉式单例（静态变量）
  */
 public class EagerSingleton {
 
@@ -12,8 +12,7 @@ public class EagerSingleton {
     /**
      * 私有默认构造器
      */
-    private EagerSingleton(){
-    }
+    private EagerSingleton(){}
 
     /**
      * 静态工厂方法

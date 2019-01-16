@@ -3,7 +3,7 @@ package com.example.demo.singleton;
 /**
  * @Author: zhuwei
  * @Date:2018/12/10 16:51
- * @Description: 通过双重检查加锁创建单例
+ * @Description: DCL「双重检测锁:Double Checked Lock」 单例（真，推荐使用）
  */
 public class Singleton2 {
 
