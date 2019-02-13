@@ -29,7 +29,7 @@ class Reactor implements Runnable {
                 Set selected = selector.selectedKeys();
                 Iterator it = selected.iterator();
                 while (it.hasNext())
-                    dispatch((SelectionKey)(it.next()); //Reactor负责dispatch收到的事件
+                    dispatch((SelectionKey)(it.next())); //Reactor负责dispatch收到的事件
                 selected.clear();
             }
         } catch (IOException ex) { /* ... */ }
