@@ -46,8 +46,8 @@ public class InsertSort {
         for(i=1;i<datas.length;i++) {
             if(datas[i]<datas[i-1]) {
                 int min = datas[i];
-                for(j=i-1;j>0&&datas[j]>min;j--){
-                    swap(datas,j,j+1);
+                for(j=i-1;j>=0&&datas[j]>min;j--){
+                    datas[j+1] = datas[j];
                 }
                 datas[j+1] = min;
 
