@@ -1,5 +1,7 @@
 package com.example.demo.sort;
 
+import java.util.Arrays;
+
 /**
  * @Author: zhuwei
  * @Date:2018/9/29 9:29
@@ -31,5 +33,25 @@ public class InsertSort {
         int temp = source[x];
         source[x] = source[y];
         source[y] = temp;
+    }
+
+    public static void main(String[] args) {
+        int[] sources = new int[]{2,5,1,8,3,7,243,-123,-123,23};
+        InsertSort.straightInsertSort(sources);
+        System.out.println(Arrays.toString(sources));
+    }
+
+    public static void straightInsertSort(int[] datas) {
+        int i,j;
+        for(i=1;i<datas.length;i++) {
+            if(datas[i]<datas[i-1]) {
+                int min = datas[i];
+                for(j=i-1;j>0&&datas[j]>min;j--){
+                    swap(datas,j,j+1);
+                }
+                datas[j+1] = min;
+
+            }
+        }
     }
 }

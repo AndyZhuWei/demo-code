@@ -1,29 +1,48 @@
 package com.example.demo.sort;
 
+import java.util.Arrays;
+
 /**
  * @Author: zhuwei
  * @Date:2018/9/29 17:15
- * @Description: 原理：首先在未排序序列中找到最小的元素，存放到排序序列的起始位置，
- * 然后，再从剩余未排序的元素中寻找最小的元素，放到排序序列起始位之后。依次类推，直到所有的元素均排序完毕。
+ * @Description: 通过n-i次关键字间的比较，从n-i+1个记录中选出关键字最小的记录，并和第i个记录交换
  */
 public class SelectSort {
-    public static void selectSort(int[] source){
-        int length = source.length;
-        for (int i = 0; i < length; i++) {
-            for (int j = i + 1; j < length; j++){
-                if (source[i] > source[j]){
-                    swap(source, i, j);
+
+    /**
+     * 简单排序算法
+     *
+     * @param datas
+     */
+    public static void simpleSelectSort(int[] datas) {
+        for (int i = 0; i < datas.length; i++) {
+            int min = i;
+            for (int j = i + 1; j < datas.length; j++) {
+                if (datas[min] > datas[j]) {
+                    min = j;
                 }
+            }
+            if (min != i) {
+                swap(datas, i, min);
             }
         }
     }
+
+    public static void main(String[] args) {
+        int[] sources = new int[]{2, 5, 1, 8, 3, 7, 243, -123, 23};
+        SelectSort.simpleSelectSort(sources);
+        System.out.println(Arrays.toString(sources));
+    }
+
+
     /**
      * 执行交换
+     *
      * @param source
      * @param x
      * @param y
      */
-    public static void swap(int[] source, int x, int y){
+    public static void swap(int[] source, int x, int y) {
         int temp = source[x];
         source[x] = source[y];
         source[y] = temp;
