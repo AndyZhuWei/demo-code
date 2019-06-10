@@ -12,6 +12,7 @@ import java.util.Arrays;
  */
 public class BubbleSort {
 
+    //标准冒泡排序算法
     public static void sort(int[] source) {
         int length = source.length;
         for(int i=0;i<length-1;i++) {
@@ -37,7 +38,31 @@ public class BubbleSort {
     public static void main(String[] args) {
         int[] sources = new int[]{2,5,1,8,3,7,243,-123,-123,23};
         //BubbleSort.sort(sources);
-        Arrays.sort(sources);
+        //Arrays.sort(sources);
+        BubbleSort.bubbleSort(sources);
         System.out.println(Arrays.toString(sources));
+    }
+
+
+    //这个算法是非标准的冒泡算法
+    public static void selectSort(int[] source){
+        int length = source.length;
+        for (int i = 0; i < length; i++) {
+            for (int j = i + 1; j < length; j++){
+                if (source[i] > source[j]){
+                    swap(source, i, j);
+                }
+            }
+        }
+    }
+
+    public static void bubbleSort(int[] datas) {
+        for(int i=0;i<datas.length-1;i++) {
+            for(int j=0;j<datas.length-1-i;j++) {
+                if(datas[j]>datas[j+1]) {
+                    swap(datas,j,j+1);
+                }
+            }
+        }
     }
 }
