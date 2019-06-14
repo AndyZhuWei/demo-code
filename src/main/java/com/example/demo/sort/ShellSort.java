@@ -1,5 +1,7 @@
 package com.example.demo.sort;
 
+import java.util.Arrays;
+
 /**
  * @Author: zhuwei
  * @Date:2018/9/29 9:50
@@ -39,5 +41,32 @@ public class ShellSort {
             System.out.print(value + " ");
         }
         System.out.println();
+    }
+
+
+
+    public static void shellSort2(int[] datas) {
+
+        int i, j;
+        int increment = datas.length;
+        do {
+            //增量序列
+            increment = increment / 3 +1;
+            for (i = increment; i < datas.length; i++) {
+                if (datas[i] < datas[i - increment]) {
+                    int temp = datas[i];
+                    for (j = i - increment; j >= 0 && temp < datas[j]; j -= increment) {
+                        datas[j + increment] = datas[j];
+                    }
+                    datas[j + increment] = temp;
+                }
+            }
+        } while (increment > 1);
+    }
+
+    public static void main(String[] args) {
+        int[] sources = new int[]{2,5,1,8,3,7,243,-123,-123,23};
+        ShellSort.shellSort2(sources);
+        System.out.println(Arrays.toString(sources));
     }
 }
