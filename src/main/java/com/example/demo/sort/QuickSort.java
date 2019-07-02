@@ -1,5 +1,7 @@
 package com.example.demo.sort;
 
+import java.util.Arrays;
+
 /**
  * @Author: zhuwei
  * @Date:2018/9/30 11:48
@@ -42,9 +44,16 @@ public class QuickSort {
         }
         //将基准点位移到中间位置
         source[i] = x;
-        System.out.println(source);
+       // System.out.println(source);
         //递归调用，基准点前的排序；之后进行基准点之后的排序
         quickSort(source, a, i-1);
         quickSort(source, i+1, b);
+    }
+
+    public static void main(String[] args) {
+        int[] sources = new int[]{2,5,1,8,3,7,243,-123,-123,23};
+
+        quickSort(sources,0,sources.length-1);
+        System.out.println(Arrays.toString(sources));
     }
 }

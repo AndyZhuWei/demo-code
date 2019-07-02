@@ -1,5 +1,7 @@
 package com.example.demo.sort;
 
+import java.util.Arrays;
+
 /**
  * @Author: zhuwei
  * @Date:2018/9/30 9:59
@@ -49,5 +51,12 @@ public class MergeSort2 {
         while(left <= right){
             arr[left++] = temp[t++];
         }
+    }
+
+    public static void main(String[] args) {
+        int[] sources = new int[]{2,5,1,8,3,7,243,-123,-123,23};
+
+        sort(sources);
+        System.out.println(Arrays.toString(sources));
     }
 }
