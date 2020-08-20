@@ -15,7 +15,7 @@ public class SelectSort {
      * @param datas
      */
     public static void simpleSelectSort(int[] datas) {
-        for (int i = 0; i < datas.length; i++) {
+        for (int i = 0; i < datas.length-1; i++) {
             int min = i;
             for (int j = i + 1; j < datas.length; j++) {
                 if (datas[min] > datas[j]) {
