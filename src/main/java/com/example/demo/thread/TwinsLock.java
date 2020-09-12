@@ -5,11 +5,7 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 
-/**
- * @Author: zhuwei
- * @Date:2018/12/19 14:40
- * @Description: 该同步工具在同一时刻，只允许之多两个线程同时访问，超过两个线程的访问将被阻塞。
- */
+
 public class TwinsLock implements Lock {
 
 

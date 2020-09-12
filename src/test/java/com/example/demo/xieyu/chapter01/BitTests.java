@@ -180,6 +180,31 @@ public class BitTests {
 
     }
 
+
+    @Test
+    public void test05() {
+        BigDecimal a = new BigDecimal("1.0");
+        BigDecimal b = new BigDecimal("0.9");
+        BigDecimal c = new BigDecimal("0.8");
+
+        BigDecimal x = a.subtract(b);
+        BigDecimal y = b.subtract(c);
+
+        //compareTo会忽略精度
+        if(x.compareTo(y) == 0) {
+            System.out.println("true");
+        } else {
+            System.out.println("false");
+        }
+
+        //equals方法会比较值和精度(1.0与1.00返回的结果为false)
+        if(x.equals(y)) {
+            System.out.println("true");
+        } else {
+            System.out.println("false");
+        }
+    }
+
     public static void main(String[] args) {
         byte b = -2;
         System.out.println(Integer.toBinaryString(b));

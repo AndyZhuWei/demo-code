@@ -74,8 +74,32 @@ Full GC的频率
 
 ##2.2 GC垃圾回收报告分析
 我们可以通过-verbosegc来打印出GC日志。这是一个比较重要的启动参数，记录每次gc的日志，于其配合的参数如下：
--XX:+PrintGCDetails,打印GC信息，这是-verbosegc默认开启的选项
+-XX:+PrintGCDetails,打印GC信息，这是-verbosegc默认开启的选项,经测试需要添加到参数中
 -XX:+PrintGCTimeStamps，打印每次GC的时间戳
 -XX:+PrintHeapAtGC,每次GC时，打印堆信息
 -XX:+PrintGCDateStamps:打印GC日期，适合于长期运行的服务器
 -Xloggc:/home/admin/logs/gc.log: 指定打印信息的记录的日志位置
+
+#2.3.1 GCHisto
+
+GCHisto是一个离线分析工具
+#2.3.2 JConsole
+JConsole是一个JMX兼容的GUI工具,可以连接运行中的Java5或者更高版本的JVM。
+用Java5 JVM启动Java应用时，命令行只有添加-Dcom.sum.management.jmxremote,JConsole才能连接，而Java6或更高版本的JVM不需要添加此属性
+#2.3.3 VisualVM
+
+jstat -gcutil命令可查看GC情况
+
+
+通过-XX:UseTLAB设置是否开启TLAB空间，TLAB包含在Eden空间，默认情况下仅占用Eden空间的1%。可以通过-XX:TLABWasteTargetPereent这是TLAB空间所占用Eden空间的百分比大小
+，如果在TLAB上分配失败，JVM就会尝试通过使用加锁机制确保数据操作的原子性，从而直接在Eden空间中分配内存，如果Eden空间无法分配内存，JVM就会执行MinorGC,直至最终可以在Eden空间
+分配内存为止（如果时大对象直接在老年代分配）
+
+逃逸分析于栈上分配
+java堆区已经不再是对象内存分配的唯一选择，如果希望降低GC的回收频率和提升GC的回收效率，那么则可以使用堆外存储技术。目前最常见的堆外存储技术就是利用i逃逸分析技术筛选出未发生逃逸的
+对象，然后避开堆区而直接选择在栈帧中分配内存空间。
+逃逸分析（Escape Analysis）时JVM在执行性能优化之前的一种分析技术，它的具体目标就是分析出对象的作用域。简单来说当一个对象被定义在方法体内部之后，它的受访权限仅限于方法体内，一旦
+其引用被外部v成员引用后，这个对象就因此发生了逃逸，反之如果定义在方法体内的对象并没有被任何的外部成员引用，JVM就会为其在栈帧中分配内存空间。
+由于对象直接在栈上分配内存，因此GC就无须执行垃圾回收。栈帧会伴随着方法的调用而创建，伴随着方法的执行结束而销毁，由此可见，栈上分配的对象所占用的空间将随着栈帧的出栈而释放。
+在JDK 6u23版本之后，HotSpot中默认就已经开启了逃逸分析，如果使用的是较早的版本，开发人员可以通过-XX:+DoEscapeAnalysis显示开启逃逸分析，以及通过选项-XX:+PrintEscapeAnalysis查看
+逃逸分析的筛选结果
