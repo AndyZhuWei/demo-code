@@ -21,7 +21,7 @@ public class ServletMain {
         response.msg="reponse";
 
         FilterChain fc = new FilterChain();
-        //fc.add(new HTMLFilter()).add(new SensitiveFilter()).doFilter(request,response,fc);
+        fc.add(new HTMLFilter()).add(new SensitiveFilter()).doFilter(request,response);
 
     }
 }
@@ -54,6 +54,9 @@ class HTMLFilter implements Filter {
 class SensitiveFilter implements Filter {
     @Override
     public boolean doFilter(Request request,Response response,FilterChain filterChain) {
+        System.out.println("SensitiveFilter rquest");
+        filterChain.doFilter(request,response);
+        System.out.println("SensitiveFilter response");
         return true;
     }
 }
@@ -61,7 +64,7 @@ class SensitiveFilter implements Filter {
 
 class FilterChain {
     List<Filter> filterList = new ArrayList();
-    Filter currentFilter = null;
+    int index = 0;
 
     public FilterChain add(Filter f) {
         filterList.add(f);
@@ -69,26 +72,11 @@ class FilterChain {
     }
 
     public boolean doFilter(Request request,Response response) {
-        if(currentFilter != null) {
-            for(int i=0;i>filterList.size();i++) {
-                Filter filter = filterList.get(i);
-                if(currentFilter == filter && i==filterList.size() - 1) {
-                    filter = filterList.get(i+1);
-                    filter.doFilter(request,response,this);
-                }
-            }
-        } else {
-            for(int i=0;i>filterList.size();i++) {
-                Filter filter = filterList.get(i);
-                currentFilter = filter;
-                filter.doFilter(request,response,this);
-                if(this == filter && i==filterList.size() - 1) {
-                    filter = filterList.get(i+1);
-                    filter.doFilter(request,response,this);
-                }
-            }
-        }
+        if(index == filterList.size()) return false;
 
+        Filter fileter = filterList.get(index);
+        index++;
+        fileter.doFilter(request,response,this);
         return true;
     }
 }
