@@ -472,16 +472,82 @@ event事件 --> 回调处理事件
 所以，你某一时间如果从APP询问内核某一个或某些fd是否r/w,会有状态返回
 
 如果内核在callback处理中再加入到一个list中，未来程序向内核索取时只是把结果集拿走了，
-而不用再遍历
+而不用再遍历。这个其实就是epoll的模型
 
 
 yum install man man-pages man只是帮助命令，会有一些简单的命令用法，man-pages里面才会有一些系统调用的命令用法
 
 
 ###EPOLL
+epoll其实有以下3项的系统调用
+epoll_create(2)：
+epoll_ctl(2)
+epoll_wait(2)
+
+再epoll下服务器变化过程
+app Server
+1.socket -->fd4 创建socket返回文件描述符
+2.bind 绑定
+3.listen fd4 监听fd4文件描述符
+以上和之前的模型都是一样的，接着调用epoll_create，返回文件描述符fd6
+4.epoll_create会让内核开辟空间，fd6就是描述的这个空间的文件描述符。
+这个空间就会放红黑树，这个调用在其生命周期中只会调用一次。
+
+接着会调用
+5.int epoll_ctl(int epfd,  int  op,  int  fd,  struct
+       epoll_event *event);
+其中epfd说的就是之前创建的fd6
+op表示的时操作，包括添加，修改和删除
+fd：表示的就是你需要添加，修改和删除的文件描述符
+*event：表示你所关注的事件
+
+最后调用epoll_wait
+6.epoll_wait
+这个调用就是在等待一个链表，这个链表中的数据就是到达的数据，那是怎么到达的呢？
+其实就是在网卡中断callback时候由内核拷贝过去的。
+之前的中断只是把网卡的数据拷贝到文件描述的buffer中，现在是多了一个延伸处理，这个延伸
+处理就是在epoll_create所创建的空间中查找所对应的文件描述符，然后迁移到相应的链表中。
+所以程序在未来某个时刻在调用时直接就返回了相应的文件描述符，而不需要在遍历了。
+
+epoll规避了遍历
 
 
+###上层java的抽象
+java中把多路复用器抽象了Selector  在linux中多路复用器可以是（select poll epoll kqueue）
+这个可以通过java启动参数指定
+-Djava.nio.channels.spi.SelectorProvider=sun.nio.ch.EPollSelectorProvider
 
+示例代码，参见SocketMultiplexingSingleThreadv1
+```
+public void initServer() {
+        try {
+            server = ServerSocketChannel.open();
+            server.configureBlocking(false);
+            server.bind(new InetSocketAddress(port));
+
+
+            //如果在epoll模型下，open--》  epoll_create -> fd3
+            selector = Selector.open();  //  select  poll  *epoll  优先选择：epoll  但是可以 -D修正
+
+            //server 约等于 listen状态的 fd4
+            /*
+            register
+            如果：
+            select，poll：jvm里开辟一个数组 fd4 放进去
+            epoll：  epoll_ctl(fd3,ADD,fd4,EPOLLIN
+             */
+            server.register(selector, SelectionKey.OP_ACCEPT);
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+```
+
+多种模型用了一套Selector
+
+epoll有一个参数值max_user_watches,允许红黑树的大小
 
 
 
