@@ -131,6 +131,12 @@
 			<version>0.9</version>
 		</dependency>
 
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-all</artifactId>
+			<version>4.1.9.Final</version>
+		</dependency>
+
 
 
 	</dependencies>
@@ -161,8 +167,8 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>2.5</version>
 				<configuration>
-					<source>${java.version}</source>
-					<target>${java.version}</target>
+					<source>9</source>
+					<target>9</target>
 					<encoding>UTF-8</encoding>
 					<compilerArguments>
 						<verbose />

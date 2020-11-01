@@ -16,3 +16,18 @@ B+树由于所有的数据都在叶子节点，不用跨层，同时由于有链
 1.BitSet:
 
 
+
+
+容器大体上可以分为Map和Collection，其中Collectin又分为List Set 和Queue.
+有了List和Set为什么还要Queue，很大程度上是为了高并发做准备的容器，它实现了好多需要在高并发下需要实现的方法
+HashTable和Vector自带锁——现在基本不用
+紧接着推出了Collections.synchronizedMap()类似的工具类，这个也是加synchronized关键字，虽然加到了方法内部，但是效率也没有提高多高
+然后又推出了ConcurrentMap
+
+
+跳表数据结构
+ConcurrentSkipListMap
+在每一层上面抽取一些关键元素组成链表，查找的时候从顶层开始查找
+
+
+

@@ -12,6 +12,14 @@ public class ThreadLocalTest {
     ThreadLocal<String> stringLocal = new ThreadLocal<String>();
 
     public void set() {
+        //设置值的时候其实是设置在到了当前线程的map
+        // （这个map是Thread对象中的ThreadLocal.ThreadLocalMap对象）中，这个map以相应的threadLocal位key，相应的值位value
+        //Spring声明式事务就用到了ThreadLocal,保证同一个Connection
+        //保存再map中的entry是一个继承自WeakReference的对象，为什么要继承这个弱引用呢，
+        //是因为一般线程对象是长期存在的，所以threadLocalMap是长期存在，指向ThreadLocal的强引用对象结束后，
+        // 如果指向Entry中的key指向ThreadLocal的是强引用就会有内存泄漏的风险。但是还有一个问题，如果是弱引用，则key被回收后，变为null。则对应的
+        //value则一直会访问不到，所以还是有内存泄漏的风险。所以一般我们再用ThreadLocal的时候需要手动清除，即threadlocal.remove()
+        //具体的示例图可以参见本目录中的weakReference.png图片
         longLocal.set(Thread.currentThread().getId());
         stringLocal.set(Thread.currentThread().getName());
     }

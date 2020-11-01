@@ -4,3 +4,7 @@
 java.io
 jdbc-odbc bridge(不是桥接模式)
 ASM transformer
+
+常见的Adapter类反而不是Adapter，是为了方便编程
+WindowAdapter
+KeyAdapter
