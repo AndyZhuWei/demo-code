@@ -108,3 +108,38 @@ epoll_ctl add和epoll_ctl del之间一直注册和取消。
 这个其实就是程序SocketMultiplexingThreads的示例
 
 ###SocketMultiplexingThreads示例
+仿照netty进行关键代码的书写
+知识点：
+1.目的是让每个fd在单独的selector中线程执行，多个selector在不同线程张并发执行
+2.如果先执行selector.select()，则在其后执行的s.register(st.selector, SelectionKey.OP_ACCEPT);会被阻塞的！！！！
+执行完selector.wakeup()，selector.select()才会返回
+
+演示了3中模式
+第一种，混杂模式：线程组不明确分工，即处理accept也处理read\write
+第二种，0号线程处理accept,其余线程处理read/write
+第三种，分为boss线程组和worker线程组，boss线程组处理accept，worker线程组处理read/writer
+
+
+###初级使用netty
+再之前的IO模型中，我们有几个重要的概念
+ByteBuffer、Channel、Selector
+再netty中有与之对应的，netty进行了封装
+比如ByteBuffer再netty中就是ByteBuf,这个ByteBuf 还多了一个pool的概念，可以选择是否池化。再以前的ByteBuffer中只能是堆内或堆外
+
+######先测试ByteBuf
+参见MyByteBuf
+
+可以使用nc -l ip port 启动一个服务
+
+基于事件或者说响应式编程 selector
+
+######netty的客户端和服务端最基础代码编写
+参见MyNetty#clientMode()和serverMode()
+
+######netty的官方客户端和服务代码编写
+利用Bootstrap和Boot
+参见MyNetty#nettyClient
+
+
+
+
