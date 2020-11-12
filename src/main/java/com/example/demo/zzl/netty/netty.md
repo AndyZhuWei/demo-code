@@ -140,6 +140,10 @@ ByteBuffer、Channel、Selector
 利用Bootstrap和Boot
 参见MyNetty#nettyClient
 
+###通过RPC的例子演示netty的使用
+参见rpc目录
+
+
 
 
 

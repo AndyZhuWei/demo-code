@@ -114,8 +114,44 @@ sendfile+mmap可以组成一个高效的组件就是kafka
 db-engines
 1.5M ops/sec <1ms redis秒级10w级别速度
 
+
+###Redis基本操作
+redis是单进程单线程处理用户数据请求，还有其他线程再别的事情。
+redis的顺序性指的的是每连接内的命令顺序
+
+redis-cli 启动客户端,默认连接的端口是6379，退出执行exit
+如果需要查看redis-cli的帮助则执行redis-cli -h
+redis默认有16个库 0到15.可以配置 连接时可以加入-n来连接指定的库，例如
+redis-cli -n 8
+再登陆状态下可以通过select number来切换库,例如select 8
+
+帮助命令
+再登陆状态下输入help命令可以显示帮助信息，如下：
+To get help about Redis commands type:
+      "help @<group>" to get a list of commands in <group>
+      "help <command>" for help on <command>
+      "help <tab>" to get a list of possible help topics
+      "quit" to exit
+
+
+
+@<group> @后边写组命令，一般有generic、string、set等，我们可以再输入完@后按键tab可以自动显示
+help @generic可以查看一些通用的命令
+
+keys * 显示创建过哪些key
+flushdb 清空所有key，生产时不要使用，一般运维也会进行rename
+
+
+
 redis支持多种类型指的是key-value中的value
-5大数据类型：string、hashs、lists、sets、sorted sets
+
+
+###redis 5大数据类型：string、hashs、lists、sets、sorted sets
+
+
+
+
+
 
 
 
