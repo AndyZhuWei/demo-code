@@ -263,7 +263,7 @@ redis-server ~/test/26379.conf --sentinel  #26379.conf配置哨兵的文件，--
 我们再启动一个哨兵
 redis-server ~/test/26380.conf --sentinel
 日志如下
-```sql
+```
 80584:X 20 Nov 2020 21:20:19.706 # Sentinel ID is 56f93a2d6bd48bcce2160e5ab70e4f919406085d
 80584:X 20 Nov 2020 21:20:19.706 # +monitor master mymaster 127.0.0.1 6379 quorum 2
 80584:X 20 Nov 2020 21:20:19.707 * +slave slave 127.0.0.1:6380 127.0.0.1 6380 @ mymaster 127.0.0.1 6379
@@ -359,4 +359,703 @@ port 26379
 sentinel monitor mymaster 127.0.0.1 6381 2
 
 
-###
+###集群方案
+前边的主从还有哨兵解决的都是单点故障和访问的压力，但是我们单个机器的容量问题还是没有解决，所以我们就有以下几种方案
+1.客户端解决
+客户端进行业务拆分，把不同的业务数据保存到不同的redis实例中，redis实例之间不知道对方的存在
+但是还有一种情况就是再业务上已经不能拆了，但是数据还是很大，这个时候就只能用下面的方案了
+
+2 sharding分片的时代
+2.1 算法拆分
+客户端处理：hash+取模（取模的个数就是redis的个数）（modula）
+这个有一个弊端：模数值是必须固定的，影响分布式下的扩展性
+
+2.2.逻辑
+random
+lpush
+客户端随机把数据放到后边的redis中，这时我们客户端时不知道放到哪个redis实例中的，
+但是这种方式有它的使用场景，比如：放入数据的客户端不需要知道它在哪里，我们另一个客户端连接所有的redis，只要取到里面的值就可以了。
+比如消息队列的应用
+
+2.3一致性hash算法（ketama）
+没有取模的过程
+data和node一起参与计算
+hash环（由一些列虚拟的和物理的节点构成）
+node经过hash算法会映射到hash环上的某一个点（物理的节点）
+我们的数据data经过hash运算后也会映射到hash环上的某个点（可能时虚拟点），我们可以通过某个算法，找到里虚拟点比较近一点的
+物理点上，把数据存进去就可以了。
+（加入虚拟节点时为了解决数据倾斜的问题）
+如果后续要添加node节点的时候，我们只需要把插入node节点的地方和之前一个物理节点之间的数据进行迁移即可，
+弊端：新增节点会造成一小部分数据不能命中造成以下问题（击穿、压到mysql）
+我们可以每次取数据时取两个节点，取不到在到mysql查询
+使用场景：redis用作缓存的时候
+
+以上2部分内容都是基于客户端的解决方案，这样就导致了实际场景中会由很多的客户端连接到redis中，直接连接到server，server压力会很大
+，所以中间可以加入一个代理曾来进行代理，如果流量很大还可以对代理曾做高可用，前边还可以加入lvs，可以给lvs做主备（通过keepliaved来做）
+
+加入代理曾后，我们可以把2中的3中实现放入到代理层中来实现。（无状态）
+以上说的代理层可以是 twemproxy、predixy和codis
+
+以上3中方式的缺点都是不能做数据库用
+
+3 redis集群
+是一种无主模型
+每个redis-server都保存了自身对某一个key的映射关系和其他redis-server的映射关系，当一个key发送到自身时，通过算法进行计算
+如果不是自身的redis则会让客户端重定向到目标server进行存取。
+数据分治后有一个问题，就是聚合操作比较难实现
+hash tag ##redis作者可以让我们需要进行聚合的key通过hash tag放到同一个server。这样就可以进行聚合操作了
+
+
+###推特代理模式(twemproxy(nutcracker))
+演示步骤
+1.在家目录中soft下创建一个twemproxy的目录
+2.克隆github上的源码
+git clone git@github.com:twitter/twemproxy.git
+有可能会报错
+如果是权限问题，需要我们当前的虚拟机或者主机把公钥保存在github的账号上。
+生成公钥的方法
+```
+ssh-keygen -t rsa -C "zhuwei927@163.com"
+cat /root/.ssh/id_rsa.pub
+```
+如果是HTTP request failed我们可以尝试升级nss
+yum update nss
+3.安装automake libtool
+yum install automake libtool -y
+4.执行以下命令
+autoreconf -fvi
+可能会报autoreconf版本低的错误
+yum search autoconf
+用yum安装的时候版本可能会低，只需要把本地仓库的指向增加一个，可以增加到阿里云仓库
+```
+wget -O /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-7.repo
+
+```
+添加完需要清理以下缓存
+yum clean all
+
+5.第4步骤完成后，就会生成configure执行文件
+6.执行./configure
+7.执行make
+8.执行完后进入src目录就会看到nutcracker执行文件
+9.到scripts目录下就可以看到一些nutcracker启动的一些脚本
+10。cp nutcracker.init /etc/init.d/twemproxy
+11.到/etc/init.d/目录下改变twemproxy权限，使其可以执行
+chmod +x twemproxy
+12.从twemproxy中可以看出需要的配置文件在
+/etc/nutcracker/nutcracker.yml
+我们按照这个目录拷贝配置文件
+13.mkdir /etc/nutcracker
+在twemproxy的源码目录中的config目录中找配置文件
+cp /root/soft/twemproxy/twemproxy/conf/* /etc/nutcracker/
+14.nutcracker可执行程序需要放到path中
+cp /root/soft/twemproxy/twemproxy/src/nutcracker /usr/bin
+15.按照nutcracker.init完成了配置文件和程序的拷贝，我们就可以像使用系统服务一样执行命令
+service nutcracker start/stop等
+16.启动之前我们对nutcracker的配置文件进行修改
+修改之前先拷贝，这是一个好习惯
+```yml
+alpha:
+  listen: 127.0.0.1:22121
+  hash: fnv1a_64
+  distribution: ketama
+  auto_eject_hosts: true
+  redis: true
+  server_retry_timeout: 2000
+  server_failure_limit: 1
+  servers:
+   - 127.0.0.1:6379:1
+   - 127.0.0.1:6380:1
+
+```
+
+17 启动两个实例
+手动启动两个临时的redis进程
+在家目录下新建一个data目录，里面新建6370和6380的目录，
+分别在这两个目录中启动(手动启动时持久化目录就是当前目录)
+redis-server --port 6739
+redis-server --port 6780
+如果碰到某个进程已经启动了还可以这样关闭改进程
+redis-cli -p xx shutdown
+18 启动nutcracker
+service twemproxy start  #这个代理服务时在22122端口上启动的
+19 我们启动一个客户端连接22122
+redis-cli -p 22121
+```
+[root@bogon ~]# redis-cli -p 22121
+127.0.0.1:22121> 
+```
+这样就连接到了twemproxy代理上了，而不是具体的redis服务
+连接后可以正常输入redis命令，那么数据存储到哪个redis实例呢？
+我们可以跳过代理进行redis实例连接看看数据在哪里
+可以发现数据在6380上
+20 测试
+如果直接在代理层执行keys * 代理层不支持，因为数据分治后，这个操作的代价有点大，所以代理层是不支持的
+watch、multi都是不支持的
+
+
+###predixy代理模式
+这个也可以进行编译，但是环境中是需要C++11的编译环境，如果没有这个环境，按照这个环境时是比较费劲的，所以我们直接拿别人编译好的
+1.在github上的release中复制编译好的下载地址
+然后在家里面soft中新建predixy目录，在predixy目录下执行
+wget https://github.com/joyieldInc/predixy/releases/download/1.0.5/predixy-1.0.5-bin-amd64-linux.tar.gz
+然后执行解压
+tar xf predixy-1.0.5-bin-amd64-linux.tar.gz
+进入predixy-1.0.5-bin-amd64-linux
+```
+[root@bogon predix]# cd predixy-1.0.5/
+[root@bogon predixy-1.0.5]# ll
+total 28
+drwxrwxr-x. 2 501 501   20 Oct 20  2018 bin
+drwxrwxr-x. 2 501 501 4096 Oct 20  2018 conf
+drwxrwxr-x. 3 501 501 4096 Oct 20  2018 doc
+-rw-rw-r--. 1 501 501 1537 Oct 20  2018 LICENSE
+-rw-rw-r--. 1 501 501 5680 Oct 20  2018 README_CN.md
+-rw-rw-r--. 1 501 501 4200 Oct 20  2018 README.md
+drwxrwxr-x. 2 501 501   37 Oct 20  2018 test
+```
+在bin目录中就只存在一个predixy,大小是14M
+```
+[root@bogon bin]# ll -h
+total 14M
+-rwxrwxr-x. 1 501 501 14M Oct 20  2018 predixy
+```
+2.修改predixy配置文件
+vi predixy.conf
+将bind打开
+Bind 127.0.0.1:7617
+在servers配置中
+导入sentinel.conf
+Include sentinel.conf
+3.修改哨兵的配置文件sentinel.conf
+vi sentinel.conf
+在vi下复制那个例子配置项内容
+在末行模式下输入
+```
+.,$y 
+```
+回车后就会把之前光标到结束位置进行复制
+在需要粘贴的地方输入p就完成了复制，
+将粘贴过来的内容#全部删除，则在末行模式下进行替换操作
+```
+:.,$s/#//
+```
+
+```
+2dd   #删除两行
+```
+```
+yy 然后p   #复制粘贴
+```
+
+修改的配置结果如下
+```yml
+SentinelServerPool {
+    Databases 16
+    Hash crc16
+    HashTag "{}"
+    Distribution modula
+    MasterReadPriority 60
+    StaticSlaveReadPriority 50
+    DynamicSlaveReadPriority 50
+    RefreshInterval 1
+    ServerTimeout 1
+    ServerFailureLimit 10
+    ServerRetryTimeout 1
+    KeepAlive 120
+    Sentinels {
+        + 127.0.0.1:26379
+        + 127.0.0.1:26380
+        + 127.0.0.1:26381
+    }
+    Group ooxx {
+    }
+    Group xxoo {
+    }
+}
+
+```
+其中ooxx 和xxoo 就是两套主从复制，modula就会在这两套主从复制中保存数据
+
+修改完配置文件后，进行保存
+哨兵可以监控一套主从复制 也可以监控多套主从复制
+
+4.启动哨兵
+在test目录下先修改哨兵26379的配置文件
+```
+port 26379
+sentinel monitor ooxx 127.0.0.1 36379 2
+sentinel monitor xxoo 127.0.0.1 46379 2
+```
+其中26379需要监控ooxx和xxoo 这个名字就是和上边group的名字对应
+36379和46379就是要备监控的主服务器
+其余两个哨兵配置文件如下
+```
+port 26380
+sentinel monitor ooxx 127.0.0.1 36379 2
+sentinel monitor xxoo 127.0.0.1 46379 2
+```
+
+```
+port 26381
+sentinel monitor ooxx 127.0.0.1 36379 2
+sentinel monitor xxoo 127.0.0.1 46379 2
+```
+
+启动
+redis-server 26379.conf --sentinel
+redis-server 26380.conf --sentinel
+redis-server 26381.conf --sentinel
+
+5.启动两套主从复制集群
+在data目录下新建36379 36380 46379 46380目录
+，然后再每个目录下分别启动redis进程
+redis-server --port 36379
+redis-server --port 36380 --replicaof 127.0.0.1 36379
+redis-server --port 46379
+redis-server --port 46380 --replicaof 127.0.0.1 46379
+
+6.启动predixy代理
+./predixy ../conf/predixy.conf 
+```
+[root@bogon bin]# ./predixy ../conf/predixy.conf 
+2020-11-22 17:38:01.402462 N Proxy.cpp:112 predixy listen in 127.0.0.1:7617
+2020-11-22 17:38:01.402552 N Proxy.cpp:143 predixy running with Name:PredixyExample Workers:1
+2020-11-22 17:38:01.402667 N Handler.cpp:454 h 0 create connection pool for server 127.0.0.1:26379
+2020-11-22 17:38:01.402691 N ConnectConnectionPool.cpp:42 h 0 create server connection 127.0.0.1:26379 5
+2020-11-22 17:38:01.402756 N Handler.cpp:454 h 0 create connection pool for server 127.0.0.1:26380
+2020-11-22 17:38:01.402769 N ConnectConnectionPool.cpp:42 h 0 create server connection 127.0.0.1:26380 6
+2020-11-22 17:38:01.402795 N Handler.cpp:454 h 0 create connection pool for server 127.0.0.1:26381
+2020-11-22 17:38:01.402805 N ConnectConnectionPool.cpp:42 h 0 create server connection 127.0.0.1:26381 7
+2020-11-22 17:38:01.403313 N StandaloneServerPool.cpp:422 sentinel server pool group ooxx create master server 127.0.0.1:36379 
+2020-11-22 17:38:01.403327 N StandaloneServerPool.cpp:472 sentinel server pool group ooxx create slave server 127.0.0.1:36380 
+2020-11-22 17:38:01.403334 N StandaloneServerPool.cpp:472 sentinel server pool group xxoo create slave server 127.0.0.1:46380 
+2020-11-22 17:38:02.511304 N StandaloneServerPool.cpp:422 sentinel server pool group xxoo create master server 127.0.0.1:46379 
+```
+7.测试
+通过第6步的输出我们可以看到代理监听的端口是7617，我们连接到7617
+测试一
+```
+[root@bogon test]# redis-cli -p 7617
+127.0.0.1:7617> set k1 fafa
+OK
+127.0.0.1:7617> get k1
+"fafa"
+127.0.0.1:7617> set k2 sgasg
+OK
+127.0.0.1:7617> get k2
+"sgasg"
+127.0.0.1:7617>
+```
+这些数据存再哪里了？
+跳过代理层直接连接到36379和46379验证
+```
+[root@bogon bin]# redis-cli -p 36379
+127.0.0.1:36379> keys *
+1) "k1"
+127.0.0.1:36379> 
+```
+发现k1再36379
+
+```
+[root@bogon ~]# redis-cli -p 46379
+127.0.0.1:46379> keys *
+1) "k2"
+127.0.0.1:46379> 
+```
+发现k2再46379上
+
+
+测试二
+```
+127.0.0.1:7617> set {oo}k1 fafasdfa
+OK
+127.0.0.1:7617> set {oo}k2 fadfafafdadfadf
+OK
+127.0.0.1:7617> 
+
+```
+再36379上查找
+```
+127.0.0.1:36379> keys *
+1) "k1"
+
+```
+只有k1
+
+再46379上查找
+```
+127.0.0.1:46379> keys *
+1) "k2"
+2) "{oo}k2"
+3) "{oo}k1"
+127.0.0.1:46379> 
+```
+发现了{oo}k2和{oo}k1再同一个机器上，说明我们可以通过特定的key把数据放到一起
+
+如果执行watch,也任然报错
+```
+127.0.0.1:7617> watch {oo}k1
+(error) ERR forbid transaction in current server pool
+```
+因为我们数据分治了而且在两个group上，
+predixy支持事务，但是支持在单个group上
+
+我们修改predixy中哨兵的配置，把两个group改为单个group.把xxoo注释掉
+注释掉后，数据就只会向剩余的一个组来写了。
+
+这时在执行事务相关的命令，就不会报错了
+
+
+测试三
+将36379的主down后，哨兵就会开始运行将其从36380升级为主
+（哨兵切换的时间可以调整）
+对于代理层7617是感觉不到的
+```
+127.0.0.1:7617> get k1
+"fafa"
+127.0.0.1:7617> get k1
+(error) ERR server connection close
+127.0.0.1:7617> get k1
+"fafa"
+127.0.0.1:7617> 
+```
+其中get k1报错时因为哨兵切换时间过长，过一会再执行get k1就正常了。
+所以代理就是解耦后边的复杂度，让客户端使用起来比较方便
+
+
+###Redis自身的集群
+老版本的时候还需要ruby来启动集群，新版本已经集成了
+
+目标：组建一套无主的多个节点的cluster有，且每个主机每个实例要认领一些槽位，每个实例要高可用
+有一个脚本可以帮我我们建立集群create-cluster
+
+1.启动实例
+./create-cluster start
+```
+[root@bogon create-cluster]# ./create-cluster start
+Starting 30001
+Starting 30002
+Starting 30003
+Starting 30004
+Starting 30005
+Starting 30006
+[root@bogon create-cluster]# 
+
+```
+2.分槽位
+./create-cluster create
+```
+[root@bogon create-cluster]# ./create-cluster create
+>>> Performing hash slots allocation on 6 nodes...
+Master[0] -> Slots 0 - 5460
+Master[1] -> Slots 5461 - 10922
+Master[2] -> Slots 10923 - 16383
+Adding replica 127.0.0.1:30005 to 127.0.0.1:30001
+Adding replica 127.0.0.1:30006 to 127.0.0.1:30002
+Adding replica 127.0.0.1:30004 to 127.0.0.1:30003
+>>> Trying to optimize slaves allocation for anti-affinity
+[WARNING] Some slaves are in the same host as their master
+M: 91b3e601378e7a1868647d59190971a29b7854b2 127.0.0.1:30001
+   slots:[0-5460] (5461 slots) master
+M: cc346d4d612bfba97cb133e2b35d4185a759f0d9 127.0.0.1:30002
+   slots:[5461-10922] (5462 slots) master
+M: 60cc1db7fedb48e2029dc31adca7560852ebbe20 127.0.0.1:30003
+   slots:[10923-16383] (5461 slots) master
+S: 405ff3a3bba0fb7a8d5cb73351d879348d005b10 127.0.0.1:30004
+   replicates 60cc1db7fedb48e2029dc31adca7560852ebbe20
+S: 5b087ad281bbb04e9aeeccb3fa12b3a4bd5695b9 127.0.0.1:30005
+   replicates 91b3e601378e7a1868647d59190971a29b7854b2
+S: 452675f0b5b0af47e0e47b90aeec17e80bbb001e 127.0.0.1:30006
+   replicates cc346d4d612bfba97cb133e2b35d4185a759f0d9
+Can I set the above configuration? (type 'yes' to accept): yes
+>>> Nodes configuration updated
+>>> Assign a different config epoch to each node
+>>> Sending CLUSTER MEET messages to join the cluster
+Waiting for the cluster to join
+..
+>>> Performing Cluster Check (using node 127.0.0.1:30001)
+M: 91b3e601378e7a1868647d59190971a29b7854b2 127.0.0.1:30001
+   slots:[0-5460] (5461 slots) master
+   1 additional replica(s)
+M: 60cc1db7fedb48e2029dc31adca7560852ebbe20 127.0.0.1:30003
+   slots:[10923-16383] (5461 slots) master
+   1 additional replica(s)
+S: 405ff3a3bba0fb7a8d5cb73351d879348d005b10 127.0.0.1:30004
+   slots: (0 slots) slave
+   replicates 60cc1db7fedb48e2029dc31adca7560852ebbe20
+S: 5b087ad281bbb04e9aeeccb3fa12b3a4bd5695b9 127.0.0.1:30005
+   slots: (0 slots) slave
+   replicates 91b3e601378e7a1868647d59190971a29b7854b2
+M: cc346d4d612bfba97cb133e2b35d4185a759f0d9 127.0.0.1:30002
+   slots:[5461-10922] (5462 slots) master
+   1 additional replica(s)
+S: 452675f0b5b0af47e0e47b90aeec17e80bbb001e 127.0.0.1:30006
+   slots: (0 slots) slave
+   replicates cc346d4d612bfba97cb133e2b35d4185a759f0d9
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+[root@bogon create-cluster]# 
+
+```
+
+3.测试
+```
+[root@bogon test]# redis-cli -p 30001
+127.0.0.1:30001> set k1 adfa
+(error) MOVED 12706 127.0.0.1:30003
+```
+客户端连接了30001设置一个k1，但是经过计算发现k1不应该再30001上，redis-server就会进行
+客户端重定向到，当前的例子就是重定向到30003
+ redis-cli这个客户端只能识别成报错
+ 正确的客户端应该是
+ redis-cli -c -p 30001 这个时候就会先跳转然后再设置
+```
+[root@bogon test]# redis-cli -c -p 30001
+127.0.0.1:30001> set k1 123123
+-> Redirected to slot [12706] located at 127.0.0.1:30003
+OK
+127.0.0.1:30003> get k1
+"123123"
+127.0.0.1:30003> set k2 24234
+-> Redirected to slot [449] located at 127.0.0.1:30001
+OK
+127.0.0.1:30001> get k2
+"24234"
+127.0.0.1:30001> get k1
+-> Redirected to slot [12706] located at 127.0.0.1:30003
+"123123"
+127.0.0.1:30003> 
+```
+客户端跳来跳去的执行，这个就是路由的模式
+
+
+演示事务
+```
+127.0.0.1:30003> watch k1 
+OK
+127.0.0.1:30003> multi
+OK
+127.0.0.1:30003> set k1 12321
+QUEUED
+127.0.0.1:30003> set k2 324234
+-> Redirected to slot [449] located at 127.0.0.1:30001
+OK
+127.0.0.1:30001> exec
+(error) ERR EXEC without MULTI
+127.0.0.1:30001> 
+```
+从演示步骤我们可以看出，执行multi的时候，是再30003上，当我们执行了set k2 324234
+时就跑到了30001，再30001上执行exec时就报错了，因为我们标记multi是打再了30003上了。所以这个问题抛给了
+我们，我们可以通过{oo}的方式让一些用于事务的key放到同一个机器上，例如
+```
+127.0.0.1:30001> set {oo}k1 fdaf
+OK
+127.0.0.1:30001> set {oo}k2 fafdadfasdfaf
+OK
+127.0.0.1:30001> watch {oo}k1
+OK
+127.0.0.1:30001> multi
+OK
+127.0.0.1:30001> set {oo}k2 fadfafd
+QUEUED
+127.0.0.1:30001> get {oo}k1
+QUEUED
+127.0.0.1:30001> exec
+1) OK
+2) "fdaf"
+127.0.0.1:30001> 
+```
+这些key都是打再了30001上，所以就会正确执行
+
+
+4.收尾
+通过create-cluster结束集群
+```
+[root@bogon create-cluster]# ./create-cluster stop
+Stopping 30001
+Stopping 30002
+Stopping 30003
+Stopping 30004
+Stopping 30005
+Stopping 30006
+[root@bogon create-cluster]# ./create-cluster clean
+
+```
+
+###另一个种使用Redis自身集群的方式
+1.我们可以通过create-cluster启动，后续的流程可以不用这个脚本
+后续可以使用redis-cli --cluster 
+```启动
+[root@bogon create-cluster]# ./create-cluster start
+Starting 30001
+Starting 30002
+Starting 30003
+Starting 30004
+Starting 30005
+Starting 30006
+```
+```创建（可以控制不同的机器）
+[root@bogon create-cluster]# redis-cli --cluster create 127.0.0.1:30001 127.0.0.1:30002 127.0.0.1:30003 127.0.0.1:30004 127.0.0.1:30005 127.0.0.1:30006 --cluster-replicas 1
+>>> Performing hash slots allocation on 6 nodes...
+Master[0] -> Slots 0 - 5460
+Master[1] -> Slots 5461 - 10922
+Master[2] -> Slots 10923 - 16383
+Adding replica 127.0.0.1:30005 to 127.0.0.1:30001
+Adding replica 127.0.0.1:30006 to 127.0.0.1:30002
+Adding replica 127.0.0.1:30004 to 127.0.0.1:30003
+>>> Trying to optimize slaves allocation for anti-affinity
+[WARNING] Some slaves are in the same host as their master
+M: e239ba973fcb9affb5777e4c619c29d3748299b2 127.0.0.1:30001
+   slots:[0-5460] (5461 slots) master
+M: 8624c6e9810e8317d471055246cfcf20a3f93236 127.0.0.1:30002
+   slots:[5461-10922] (5462 slots) master
+M: c3a38fe9f46670f0a21aeb088459e0544d24d2c2 127.0.0.1:30003
+   slots:[10923-16383] (5461 slots) master
+S: 6041968cb9f0d0b3ca2a97e893d2d4b3e7335b6b 127.0.0.1:30004
+   replicates c3a38fe9f46670f0a21aeb088459e0544d24d2c2
+S: cc8ed9584ce0c5a6b589217d1289ad58a265ea6c 127.0.0.1:30005
+   replicates e239ba973fcb9affb5777e4c619c29d3748299b2
+S: a05488da05d56e6b5f038c9a477ee1f79a004f08 127.0.0.1:30006
+   replicates 8624c6e9810e8317d471055246cfcf20a3f93236
+Can I set the above configuration? (type 'yes' to accept): yes
+>>> Nodes configuration updated
+>>> Assign a different config epoch to each node
+>>> Sending CLUSTER MEET messages to join the cluster
+Waiting for the cluster to join
+.
+>>> Performing Cluster Check (using node 127.0.0.1:30001)
+M: e239ba973fcb9affb5777e4c619c29d3748299b2 127.0.0.1:30001
+   slots:[0-5460] (5461 slots) master
+   1 additional replica(s)
+M: 8624c6e9810e8317d471055246cfcf20a3f93236 127.0.0.1:30002
+   slots:[5461-10922] (5462 slots) master
+   1 additional replica(s)
+S: cc8ed9584ce0c5a6b589217d1289ad58a265ea6c 127.0.0.1:30005
+   slots: (0 slots) slave
+   replicates e239ba973fcb9affb5777e4c619c29d3748299b2
+M: c3a38fe9f46670f0a21aeb088459e0544d24d2c2 127.0.0.1:30003
+   slots:[10923-16383] (5461 slots) master
+   1 additional replica(s)
+S: a05488da05d56e6b5f038c9a477ee1f79a004f08 127.0.0.1:30006
+   slots: (0 slots) slave
+   replicates 8624c6e9810e8317d471055246cfcf20a3f93236
+S: 6041968cb9f0d0b3ca2a97e893d2d4b3e7335b6b 127.0.0.1:30004
+   slots: (0 slots) slave
+   replicates c3a38fe9f46670f0a21aeb088459e0544d24d2c2
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+[root@bogon create-cluster]#
+```
+
+2.测试
+
+3.reshard 重新分布数据
+```
+[root@bogon create-cluster]# redis-cli --cluster reshard 127.0.0.1:30001
+>>> Performing Cluster Check (using node 127.0.0.1:30001)
+M: e239ba973fcb9affb5777e4c619c29d3748299b2 127.0.0.1:30001
+   slots:[2000-5460] (3461 slots) master
+   1 additional replica(s)
+M: 8624c6e9810e8317d471055246cfcf20a3f93236 127.0.0.1:30002
+   slots:[0-1999],[5461-10922] (7462 slots) master
+   1 additional replica(s)
+S: cc8ed9584ce0c5a6b589217d1289ad58a265ea6c 127.0.0.1:30005
+   slots: (0 slots) slave
+   replicates e239ba973fcb9affb5777e4c619c29d3748299b2
+M: c3a38fe9f46670f0a21aeb088459e0544d24d2c2 127.0.0.1:30003
+   slots:[10923-16383] (5461 slots) master
+   1 additional replica(s)
+S: a05488da05d56e6b5f038c9a477ee1f79a004f08 127.0.0.1:30006
+   slots: (0 slots) slave
+   replicates 8624c6e9810e8317d471055246cfcf20a3f93236
+S: 6041968cb9f0d0b3ca2a97e893d2d4b3e7335b6b 127.0.0.1:30004
+   slots: (0 slots) slave
+   replicates c3a38fe9f46670f0a21aeb088459e0544d24d2c2
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+How many slots do you want to move (from 1 to 16384)? 2000         #此处输入要移动的槽位个数
+What is the receiving node ID? 8624c6e9810e8317d471055246cfcf20a3f93236          #此处输入要接收槽位的node节点id,上边的输出信息有，此处输入的是30002的id
+Please enter all the source node IDs.
+  Type 'all' to use all the nodes as source nodes for the hash slots.
+  Type 'done' once you entered all the source nodes IDs.
+Source node #1:e239ba973fcb9affb5777e4c619c29d3748299b2   #此处可以输入all表示从所有的节点中抽取待移动的槽位，或者输入某一个具体的节点id,如果是多个可以回车后继续输入，输入完毕后输入done即可，此处输入30001
+Source node #2: done       #done表示输入完毕
+...                        #省略了一些槽位待移动的信息输出
+Do you want to proceed with the proposed reshard plan (yes/no)?  yes   #确认 输入yes表示确认
+...                          #省略了槽位的移动信息
+```
+
+ 4.查看槽位信息
+ ```
+[root@bogon test]# redis-cli --cluster info 127.0.0.1:30001
+127.0.0.1:30001 (e239ba97...) -> 0 keys | 3461 slots | 1 slaves.
+127.0.0.1:30002 (8624c6e9...) -> 0 keys | 7462 slots | 1 slaves.
+127.0.0.1:30003 (c3a38fe9...) -> 0 keys | 5461 slots | 1 slaves.
+[OK] 0 keys in 3 masters.
+0.00 keys per slot on average.
+```
+以前分布比较均匀，现在30001比较少，30002分的就比较多了
+
+5.check槽位信息
+redis-cli --cluster check 127.0.0.1:30001
+```
+[root@bogon test]# redis-cli --cluster check 127.0.0.1:30001
+127.0.0.1:30001 (e239ba97...) -> 0 keys | 3461 slots | 1 slaves.
+127.0.0.1:30002 (8624c6e9...) -> 0 keys | 7462 slots | 1 slaves.
+127.0.0.1:30003 (c3a38fe9...) -> 0 keys | 5461 slots | 1 slaves.
+[OK] 0 keys in 3 masters.
+0.00 keys per slot on average.
+>>> Performing Cluster Check (using node 127.0.0.1:30001)
+M: e239ba973fcb9affb5777e4c619c29d3748299b2 127.0.0.1:30001
+   slots:[2000-5460] (3461 slots) master
+   1 additional replica(s)
+M: 8624c6e9810e8317d471055246cfcf20a3f93236 127.0.0.1:30002
+   slots:[0-1999],[5461-10922] (7462 slots) master
+   1 additional replica(s)
+S: cc8ed9584ce0c5a6b589217d1289ad58a265ea6c 127.0.0.1:30005
+   slots: (0 slots) slave
+   replicates e239ba973fcb9affb5777e4c619c29d3748299b2
+M: c3a38fe9f46670f0a21aeb088459e0544d24d2c2 127.0.0.1:30003
+   slots:[10923-16383] (5461 slots) master
+   1 additional replica(s)
+S: a05488da05d56e6b5f038c9a477ee1f79a004f08 127.0.0.1:30006
+   slots: (0 slots) slave
+   replicates 8624c6e9810e8317d471055246cfcf20a3f93236
+S: 6041968cb9f0d0b3ca2a97e893d2d4b3e7335b6b 127.0.0.1:30004
+   slots: (0 slots) slave
+   replicates c3a38fe9f46670f0a21aeb088459e0544d24d2c2
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+[root@bogon test]# 
+```
+
+补充：
+启动集群时我们使用的是脚本./create-cluster start
+如果连这个也不使用，我们可以在redis配置文件中加入cluster-enable yes
+然后像启动普通redis-server就可以了
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
