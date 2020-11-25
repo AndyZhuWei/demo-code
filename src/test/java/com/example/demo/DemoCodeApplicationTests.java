@@ -1,17 +1,19 @@
 package com.example.demo;
 
+import com.alibaba.excel.EasyExcel;
+import com.example.demo.excel.ExcelListener;
+import com.example.demo.excel.ExcelUtil;
+import com.example.demo.excel.StockModel;
 import com.example.demo.model.PolicyNumTemp;
 import com.example.demo.service.PolicyNumTempService;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileReader;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,6 +56,32 @@ public class DemoCodeApplicationTests {
 
 
 
+	}
+
+
+
+	@Test
+	public void importDataToIn() throws IOException {
+
+		InputStream inputStream = new FileInputStream("D:\\Desktop\\data.xlsx");
+
+		ExcelUtil.readExcel(inputStream,new StockModel(),0,1);
+
+	}
+
+
+	@Test
+	public void indexOrNameRead() {
+		String fileName = "D:\\Desktop\\data.xlsx";
+		// 这里默认读取第一个sheet
+		ExcelListener excelListener = new ExcelListener();
+		EasyExcel.read(fileName, StockModel.class, excelListener).sheet().doRead();
+		List<StockModel> datas = excelListener.getDatas();
+		if(datas!=null && datas.size()!=0) {
+			for(StockModel stockModel: datas) {
+
+			}
+		}
 	}
 
 }

@@ -10,7 +10,7 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
  */
 public class Main {
     public static void main(String[] args) {
-        ApplicationContext content = new ClassPathXmlApplicationContext("app.xml");
+        ApplicationContext content = new ClassPathXmlApplicationContext("app.xml.bak");
         Tank t = (Tank)content.getBean("tank");
         System.out.println(t.getClass().getSimpleName());
         t.move();

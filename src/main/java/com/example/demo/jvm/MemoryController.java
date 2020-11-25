@@ -1,6 +1,7 @@
 package com.example.demo.jvm;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.UUID;
  * @Description: 演示内存溢出
  */
 @RestController
+@RequestMapping("/memoryController")
 public class MemoryController {
 
     //对象的成员变量会随着对象本身而存储在堆上

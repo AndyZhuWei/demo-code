@@ -12,6 +12,7 @@ import java.util.List;
  * @Description: 演示死循环与死锁
  */
 @RestController
+@RequestMapping("/cpu")
 public class CpuController {
 
     /**

@@ -65,11 +65,43 @@ zookeeper虽然在速度上没有redis快，但是在数据一致性和准确性
 所以做分布式锁最好用zookeeper
 
 #API
+###jedis
+线程不安全的，在客户端中可能有多个线程访问同一个jedis创建的连接。解决方案是可以池化jedis的连接
+
+###lettuce
+线程安全、支持异步、同步、响应式api
+
+###spring中的使用方式
+spring data redis
+
+###spring boot:low/high level
+low level:就是拿到redis的连接后进行api调用开发（不易使用，但是更易于灵活控制使用）
+high level:提供template进行api进行调用开发（易使用，不易进行灵活控制）
+
+
+
+###过程
+1.连接
+2.使用api
+3.数据经过什么编解码，使用什么方式放到redis中的二进制里面
+
+
+### 临时修改配置文件
+config get *  #表示查询当前redis的所有配置信息
+其中有一项配置是
+163) "protected-mode"
+164) "yes"
+默认表示禁止远端连接
+可以在配置文件中修改也可以临时修改
+config set protected-mode no
 
 
 
 
 
-jedis
-luttce
-spring boot:low/high level
+
+
+
+
+
+
