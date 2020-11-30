@@ -1,6 +1,5 @@
 package com.example.demo.jdk8;
 
-import java.lang.reflect.AccessibleObject;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -11,6 +10,10 @@ import java.util.concurrent.atomic.LongAdder;
  * @Author: zhuwei
  * @Date:2018/12/10 17:32
  * @Description: LongAdder类似于AtomicLong是原子性递增或者递减类
+ * <p>
+ * Atomic、Sync和LongAdder
+ * Atomic比Sync要快，因为用到了无锁操作
+ * 其中LongAdder比Atomic要快，因为内部使用的是分段锁的理论，在线程数特别多的情况下会比较有优势，否则不一定
  */
 public class LongAdderDemo {
     private static final int MAX_THREADS = 3;
@@ -39,7 +42,7 @@ public class LongAdderDemo {
         protected long starttime;
         LongAdderDemo out;
 
-        public SyncThread(Long starttime,LongAdderDemo out) {
+        public SyncThread(Long starttime, LongAdderDemo out) {
             this.starttime = starttime;
             this.out = out;
         }
@@ -47,11 +50,11 @@ public class LongAdderDemo {
         @Override
         public void run() {
             long v = out.getCount();
-            while(v<TARGET_COUNT) {
+            while (v < TARGET_COUNT) {
                 v = out.inc();
             }
             long endtime = System.currentTimeMillis();
-            System.out.println("SyncThread spend:"+(endtime-starttime)+"ms"+" v" + v);
+            System.out.println("SyncThread spend:" + (endtime - starttime) + "ms" + " v" + v);
             cdlsync.countDown();
         }
     }
@@ -59,8 +62,8 @@ public class LongAdderDemo {
     public void testSync() throws InterruptedException {
         ExecutorService exe = Executors.newFixedThreadPool(MAX_THREADS);
         long starttime = System.currentTimeMillis();
-        SyncThread sync = new SyncThread(starttime,this);
-        for(int i=0;i<TASK_COUNT;i++) {
+        SyncThread sync = new SyncThread(starttime, this);
+        for (int i = 0; i < TASK_COUNT; i++) {
             exe.submit(sync);
         }
         cdlsync.await();
@@ -74,17 +77,17 @@ public class LongAdderDemo {
         protected long starttime;
 
         public AtomicThread(long starttime) {
-            this.starttime=starttime;
+            this.starttime = starttime;
         }
 
         @Override
         public void run() {
             long v = acount.get();
-            while(v<TARGET_COUNT) {
+            while (v < TARGET_COUNT) {
                 v = acount.incrementAndGet();
             }
             long endtime = System.currentTimeMillis();
-            System.out.println("AtomictThread spend:"+(endtime-starttime)+"ms"+" v"+v);
+            System.out.println("AtomictThread spend:" + (endtime - starttime) + "ms" + " v" + v);
             cdlatomic.countDown();
         }
     }
@@ -93,7 +96,7 @@ public class LongAdderDemo {
         ExecutorService exe = Executors.newFixedThreadPool(MAX_THREADS);
         long starttime = System.currentTimeMillis();
         AtomicThread atomic = new AtomicThread(starttime);
-        for(int i=0;i<TASK_COUNT;i++) {
+        for (int i = 0; i < TASK_COUNT; i++) {
             exe.submit(atomic);
         }
         cdlatomic.await();
@@ -106,18 +109,18 @@ public class LongAdderDemo {
         protected long starttime;
 
         public LongAdderThread(long starttime) {
-            this.starttime=starttime;
+            this.starttime = starttime;
         }
 
         @Override
         public void run() {
             long v = lacount.sum();
-            while(v<TARGET_COUNT) {
+            while (v < TARGET_COUNT) {
                 lacount.increment();
                 v = lacount.sum();
             }
             long endtime = System.currentTimeMillis();
-            System.out.println("LongAdderThread spend:"+(endtime-starttime)+"ms"+" v"+v);
+            System.out.println("LongAdderThread spend:" + (endtime - starttime) + "ms" + " v" + v);
             cdladdr.countDown();
         }
 
@@ -127,7 +130,7 @@ public class LongAdderDemo {
         ExecutorService exe = Executors.newFixedThreadPool(MAX_THREADS);
         long starttime = System.currentTimeMillis();
         LongAdderThread atomic = new LongAdderThread(starttime);
-        for(int i=0;i<TASK_COUNT;i++) {
+        for (int i = 0; i < TASK_COUNT; i++) {
             exe.submit(atomic);
         }
         cdlatomic.await();

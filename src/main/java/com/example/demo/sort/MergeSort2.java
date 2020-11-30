@@ -59,4 +59,10 @@ public class MergeSort2 {
         sort(sources);
         System.out.println(Arrays.toString(sources));
     }
+
+
+
+    public void merge(int[] arrayA,int[] arrayB,int left,int right,int[] temp) {
+
+    }
 }

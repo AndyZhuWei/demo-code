@@ -343,8 +343,91 @@ public class JVMTests {
 
     //现在使用比较多的字节码修改的API大概有ASM、javassist、BCEL、SERP、CGLib(基于ASM)等技术。
 
-    //获取到新的字节数组后，就要想办法来加载它。其中一种方式是基于Java的Instrument API来实现；另一种方式是通过指定的
-    //ClassLoader来完成
+    //获取到新的字节数组后，就要想办法来加载它。其中一种方式是基于Java的Instrument API来实现；
+    // 另一种方式是通过指定的ClassLoader来完成.
+
+    //使用ASM修改字节码信息的例子参考ASMTestMain
+
+
+    //ASM是一种修改字节码本身的API,它实现的抽象层次是很低的，几乎接近于指令级别，类似上面增加的
+    //都是基于指令和操作数的，跟我们学到的字节码本身的结构很像。
+    //再来想想SPring的AOP,如果它用字节码增强来实现会怎么做？或者说，如果你要用字节码增强来实现，你会如何做？
+    //我们有可能会自己定义一个ClassLoader，然后所有相关的类都用这个ClassLoader来加载，而不是默认的ClassLoader,
+    //通过ASM字节码增强实现之，当用户代码调用getBean方法时，返回的就是对应字节码修改后的Class所产生的对象。这是一种实现
+    //方式，行得通。
+    //但是有一些现实问题，ASM操作虽然和字节码很像，简化了操作二进制的麻烦（将二进制指令转换为字符、常量，内在的许多依赖结构
+    // 变化由ASM封装），但是也同样需要记200多个指令，还有指令后接的东西，太烦琐了。
+    //于是我们就在想：给一小段Java代码，它能动态载入，我想切入到哪里都行，这样就“爽歪歪”了。下面
+    //我们就介绍用javassist的API来实现字节码增强，代码有点像下面这样：
+//    CtClass ctClass
+//            =ClassPool.getDefault().get("xxx.xxx.xxx");
+//    CtMethod ctMethod = cc.getDeclaredMethod("test");
+//    ctMethod.insertBefore("System.out.println(\"打印我吧，求求你了！\");");
+//    ctMethod.insertAfter(
+//            "String a = \"XXX来了，快跑！\";"+
+//            "System.out.println(\"我勒个去！\");"
+//            );
+//    byte[] bytes = cc.toByteCode();
+
+    //就这么简单的方式字节码就被增强了，调用程序得到返回的byte[]后，就可以想前文中提到的通过
+    //ClassLoader来加载了。需要注意的是，javassist对同一个类只能重新定义一次，它会记录这个
+    //类已经被修改了，再次字节码增强时，会报错：class is frozen and pruned.
+
+    //为了可以再次修改我们可以这样：
+    //其一，在加载Class前增加一个ClassFileTransformer,通过ClassFileTransformer来修改字节码
+    //其二，我们可以通过Instrumentation API中的redeineClasss(ClassDefinition)方法来重
+    //定义Class类，但是有些细节需要知道，否则无法运行起来
+
+    //我们要知道Instrumentation API程序无法直接使用，需要通过Agent的方式来启动它（或通过动态加载
+    // Agent的方式）。所以用这段代码时，首先需要将操作Instrumentation的代码打包为一个jar包，例如agent.jar
+    //在运行实际调用代码部分时，在启动参数中需要增加-javaagent:agent.jar来运行
+
+    //例子1 在类加载时修改字节码信息
+    //首先我们要构造一个Transformer,它需要实现接口ClassFileTransformer，并实现其中的transform方法.查看TestTransformer
+    //在这段代码中，如果传入的类是ForASMTestClass,则会将display1()方法切入。但是这段代码还仅仅是切入代码的定义部分，接下来做
+    //的是让JVM在加载类的时候调用它才能达到效果。
+    //此时需要将这个Transformer注册到Instrumentation中，那么自然就需要先写一个Agent程序了。参考InstForTransformer
+    //如果注册成功，那么在JVM加载用户的Class时，就会调用对应的TestTransformer类的transform方法来获得修改后的字节码，达到修改字节码的目的。
+    //就像一个应用上的过滤器一样，所以这个概念也是相对的，就算是虚拟机层面也是这样的。
+    //Agent的代码并不复杂，这里就一条代码，接下来要将这一小段程序的Class文件打一个jar包(仅仅是这一小段程序)。你可以就在这个工程里面打包（打包时
+    // 指定文件），也可以将Class文件单独拷贝出去打包，如果要拷贝出去，就要在对应的地方建立package目录。
+    //jar cvf transformer.jar *
+    //打包完成后，事情还没完，我们还要做点事情才行！
+    //一些复杂的功能自然需要一些复杂的操作，而且这类操作都是一次性的，通常项目建立后，就不会有太多这样的操作了。
+    //打开这个jar包，进入META-INF文件夹，里面有个文件叫“MANIFEST.MF”，是一个文本文件，在文件中增加一行：
+    //Premain-Class:com.example.demo.xieyu.chapter03.InstForTransformer
+    //它用于标识这个jar包中的哪一个类是Agent的类，这个类的premain方法将被JVM调用。第2个参数就是Instrumentation的实例，用来做接下来的操作
+    //需要特别注意：冒号后面要有个空格，这个不能少，否则会报错：
+    //接下来这个transformer.jar放到一个目录下，例如/temp/agent/transformer.jar。在windows上操作也是类似的，例如d:/temp/agent/transformer.jar
+    //(注意：这里的目录标识符都用“/”符合统一标准，在任何操作系统上都通用)
+    //测试方法1：
+//    public class TestformerTestMain {
+//        public static void main(String[] args) {
+//            ForASMTestClass testClass = new ForASMTestClass();
+//            testClass.display1();
+//        }
+//    }
+    //这段代码没有任何主动调用字节码增强的部分，程序本身的代码中new出来的对象，竟然可以被修改
+    //运行java -javaagent:/temp/agent/transformer.jar com.example.demo.xieyu.chapter03.TestformerTestMain
+    //运行后就可以得到我们修改字节码后的内容了。
+    //还可以通过工具来运行，运行前需要在VM arguments中配置javaagent设置-javaagent:/tmp/agent/transformer.jar
+    //在调用addTransformer的时候，还有另一种方式可以使用
+    //isntP.addTransformer(new TestTransformer(),true);
+    //这样设置后，可以在程序运行中调用retransformClasses(Class)方法来实现对字节码的修改，也就是运行中随时改掉一个Class
+    //的字节码和这个类相关的实例会立即生效，这个功能与即将介绍的redefine的功能类似。
+
+
+    //运行时修改字节码信息
+    //在系统加载的时候，也要持有Instrumentation的实例，但是不再有自定义的Transfomer，因为不是在Transformer
+    //中去修改类，而是直接redefine这个Class的内容,见InstForRedefineClass
+    //将修改后的字节码通过redefineClass()调用传入时，它就不需要像ClassLoader那样每个ClassLoader只能加载一个
+    //同名的类，而是直接修改字节码本身Class的内容，所以是立即生效的（即使是在这个字节码被修改前创建的实例，如果再次
+    // 调用对应的方法，也会运行修改后的代码）。这是与ClassLoader去加载一个类本质上的区别
+    //它的Agent的jar包下META-INFO/MANIFEST.MF中，处理所需要的Premain-Class：外，还需要加一行：
+    //Can-Redefine-Classes: true 表示这个Agent环境是否运行重定义Class.添加好后运行方式和上边的一致
+    //前边我们提到的都是进程内部，而且必须在启动是增加Agent命令，后文中还会提到通过进程外部链接动态加载Agent程序的例子
+    
+
 
 
 

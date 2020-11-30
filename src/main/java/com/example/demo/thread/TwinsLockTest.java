@@ -1,17 +1,14 @@
 package com.example.demo.thread;
 
+import java.io.IOException;
 import java.util.concurrent.locks.Lock;
 
-/**
- * @Author: zhuwei
- * @Date:2018/12/19 15:18
- * @Description:
- */
+
 public class TwinsLockTest {
 
     public static final Lock lock = new TwinsLock();
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         //启动10个线程
         for(int i=0;i<10;i++) {
             Thread thread  = new Thread(new Worker(),"WorkerThread-"+i);

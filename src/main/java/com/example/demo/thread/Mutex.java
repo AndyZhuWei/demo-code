@@ -5,11 +5,7 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 
-/**
- * @Author: zhuwei
- * @Date:2018/12/19 10:24
- * @Description: 自定义独占锁示例，不支持重进入
- */
+
 public class Mutex implements Lock {
 
 

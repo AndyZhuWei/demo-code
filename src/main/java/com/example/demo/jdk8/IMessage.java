@@ -15,7 +15,7 @@ public interface IMessage {
     }
 
     static void get() {
-        System.out.println("直接由接口调用！");
+        System.out.println("接口直接调用");
     }
 
 
