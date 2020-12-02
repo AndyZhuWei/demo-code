@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 //@MapperScan("com.example.demo.mapper")  test   fdasfd master分支修改
+//@MapperScan("com.example.demo.mapper")  test test分支修改
 public class DemoCodeApplication {
 
 	public static void main(String[] args) {
