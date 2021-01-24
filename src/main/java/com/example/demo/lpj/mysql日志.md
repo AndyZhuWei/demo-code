@@ -27,6 +27,49 @@ WAL:(write ahead log 预写日志) 提高性能
 疑惑：
 既然要避免io，为什么写redo log的时候不会造成io的问题？
 ![redo_log](D:\IT\demo-code\src\main\java\com\example\demo\lpj\redo_log.png)
+写redo log时顺序写的过程
+
+innodb_flush_log_at_trx_commit：能够控制事务提交时，刷redo log的策略。
+策略一：最佳性能(innodb_flush_log_at_trx_commit=0)
+       每隔一秒，才将Log Buffer中的数据批量write入OS cache，同时MySQL主动fsync。
+       这种策略，如果数据库奔溃，有一秒的数据丢失。
+       
+策略二：强一致(innodb_flush_log_at_trx_commit=1)
+       每次事务提交，都将Log Buffer中的数据write入OS cache，同时MySQL主动fsync。
+       这种策略，是InnoDB的默认配置，为的是保证事务ACID特性。
+       
+策略三：折衷(innodb_flush_log_at_trx_commit=2)
+       每次事务提交，都将Log Buffer中的数据write入OS cache；
+       每隔一秒，MySQL主动将OS cache中的数据批量fsync。
+       
+       
+       
+```
+高并发业务，行业最佳实践，是使用第三种折衷配置（=2），这是因为：
+
+（1）配置为2和配置为0，性能差异并不大，因为将数据从Log Buffer拷贝到OS cache，虽然跨越用户态与内核态，但毕竟只是内存的数据拷贝，速度很快；
+
+（2）配置为2和配置为0，安全性差异巨大，操作系统崩溃的概率相比MySQL应用程序崩溃的概率，小很多，设置为2，只要操作系统不奔溃，也绝对不会丢数据。
+
+
+总结
+一、为了保证事务的ACID特性，理论上每次事务提交都应该刷盘，但此时效率很低，有两种优化方向：
+（1）随机写优化为顺序写；
+（2）每次写优化为批量写；
+
+二、redo log是一种顺序写，它有三层架构：
+（1）MySQL应用层：Log Buffer
+（2）OS内核层：OS cache
+（3）OS文件：log file
+
+三、为了满足不用业务对于吞吐量与一致性的需求，MySQL事务提交时刷redo log有三种策略：
+（1）0：每秒write一次OS cache，同时fsync刷磁盘，性能好；
+（2）1：每次都write入OS cache，同时fsync刷磁盘，一致性好；
+（3）2：每次都write入OS cache，每秒fsync刷磁盘，折衷；
+
+四、高并发业务，行业内的最佳实践，是：
+innodb_flush_log_at_trx_commit=2
+```
 
 ###Undo log（也可以叫回滚日志）
 *Undo log是为了实现事务的原子性，在MySql数据库InnoDB存储引擎中，还用Undo Log来实现多版本并发控制（简称：MVCC）
@@ -70,7 +113,7 @@ binlog_format  STATEMENT/ROW
 其实这些都是为了保证redolog和binlog数据的一致性
 
 ## redo log的两阶段提交
-* 先写redolog后写binlog:假设在redolog写完，binlog还欸呦写完的时候，MySql进行异常重启。由于我们前面说过，
+* 先写redolog后写binlog:假设在redolog写完，binlog还没有写完的时候，MySql进行异常重启。由于我们前面说过，
   redolog写完后，系统即使崩溃，任然能够把数据恢复回来，所以恢复后这一行c的值是1.但是由于binlog没有写完就crash了，
   这个时候binlog里面就没有记录这个语句。因此，之后备份日志的时候，存起来的binlog里面就没有这条语句。然后
   你会发现，如果需要用这个binlog来恢复临时库的话，由于这个语句的binlog会丢失，这个临时库就会少了这一次更新，恢复出来的这

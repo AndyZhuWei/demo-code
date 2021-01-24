@@ -1,0 +1,2 @@
+activeRecord模式：在实体对象上自带CRUD等操作
+ORM模式：CRUD在ORM框架上集成

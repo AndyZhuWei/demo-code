@@ -45,15 +45,19 @@ public abstract class ClassVisitor {
 1. void visit(int version,int access,String name,String signature,String superName,String[] interfaces)
 该方法是当扫描类时第一个调用的方法，主要用于类声明使用。下面是对方法中各个参数的示意：
 visit(类版本,修饰符,类名,泛型信息,继承的父类,实现的接口)
+   
 2.AnntationVisitor visitAnnotation(String des,boolean visible)
 该方法是当扫描器扫描到类注解声明时进行调用。下面是对方法中各个参数的示意：
 visitAnnotation(注解类型，注解是否可以在JVM中可见)
+
 3.FieldVisitor visitField(int access,String name,String desc,String signature,Object value)
 该方法是当扫描器扫描到类中字段时进行调用。下面是对方法中各个参数示意：
 visitField(修饰符，字段名，字段类型，泛型描述，默认值)
+
 4.MethodVisitor visitMethod(int access,String name,String desc,String signature,String[] exceptions)
 该方法是当扫描器扫描到类的方法时进行调用。下面是对方法中各个参数示意：
 visitMethod(修饰符，方法名，方法签名，泛型信息，抛出的异常)
+
 5.void visitEnd()
 该方法是当扫描器完成类扫描时才会调用，如果想在类中追加某些方法
 

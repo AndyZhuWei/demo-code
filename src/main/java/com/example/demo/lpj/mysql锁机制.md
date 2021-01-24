@@ -13,3 +13,6 @@ mysql默认的隔离级别是repeatable read
 4.压缩包
 
 末行模型下： ! ls /usr/xx
+
+
+mysql中的innodb中发现死锁时，mysql内部有机制会自动释放锁

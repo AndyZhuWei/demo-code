@@ -24,7 +24,7 @@ mysql server：
   memory:内存
 ## 1使用show profile查询，可以指定具体的type
 *查询一条sql语句执行的时间
-1.set profiling=1;
+1.set profiling=1; 开启
 2.查询语句
 3.show profiles
 *显示详细花费时间

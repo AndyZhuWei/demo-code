@@ -26,3 +26,27 @@ trace命令只会trace匹配到的函数里的子调用，并不会向下trace�
 
 可以用正则表匹配路径上的多个类和函数，一定程度上达到多层trace的效果。(注意-E参数)
 trace -E com.test.ClassA|org.test.ClassB method1|method2|method3
+
+### jad/mc/redefine线上热更新一条龙
+jad反编译代码
+反编译UserController，保存到 /tmp/UserController.java文件里。
+
+jad --source-only com.example.demo.arthas.user.UserController > /tmp/UserController.java
+修改反编译出来的代码
+sc查找加载UserController的ClassLoader
+$ sc -d *UserController | grep classLoaderHash
+ classLoaderHash   1be6f5c3
+ 可以发现是spring boot的 LaunchedURLClassLoader@1be6f5c3 加载的。
+ 
+ mc内存编译代码
+ 保存好/tmp/UserController.java之后，使用mc(Memory Compiler)命令来编译，并且通过-c参数指定ClassLoader：
+ 
+ $ mc -c 1be6f5c3 /tmp/UserController.java -d /tmp
+ Memory compiler output:
+ /tmp/com/example/demo/arthas/user/UserController.class
+ Affect(row-cnt:1) cost in 346 ms
+ redefine热更新代码
+ 再使用redefine命令重新加载新编译好的UserController.class：
+ 
+ $ redefine /tmp/com/example/demo/arthas/user/UserController.class
+ redefine success, size: 1

@@ -10,5 +10,7 @@ public class DemoCodeApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(DemoCodeApplication.class, args);
+
+		System.out.println(System.getProperty("jdbc.drivers"));
 	}
 }
