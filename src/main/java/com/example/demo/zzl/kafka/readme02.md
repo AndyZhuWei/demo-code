@@ -125,6 +125,133 @@ Low Watermark(LW)
 不要太追求磁盘的可靠性
 还有trade off，就是在HA场景下，如果有实例异常退出，是否需要立刻尝试重启
 
+## 实践
+主要讲解的知识点
+1.索引
+时间戳索引和偏移量索引
+2.消费者，数据可靠性
+ASR ISR AR
+3.时间戳，自定义消费数据
+本质是：seek
+
+
+
+
+环境
+在node01~node03上跑kafka
+在node02~node04上跑zk
+kafka持久化的数据目录是在配置文件中的log.dirs配置的
+创建一个主题msb-items
+
+### 索引
+
+```text
+kafka-topics.sh --zookeeper node02:2181,node03:2181/kafka --create --topic msb-items --partitions 2 --replication-factor 3
+kafka-topics.sh --zookeeper node02:2181,node03:2181/kafka --describe --topic msb-items #复制出来观察```
+```
+观察分区在哪个节点，观察持久话目录里的数据，可以看到有数据和索引
+数据大小为0，但是索引文件都是10M，这些都是mmap映射出来的，
+通过lsof查看时对应的type为mem，而log文件则是普通的文件reg
+
+mmap(内核空间和用户空间的映射)
+
+file文件的channel.mmap
+文件的块和内核的块映射和应用程序空间打通
+
+lsof -Pnp pid   #-P:端口号 -n显示端口号不要显示端口号别名 -p：进程
+
+为什么log不用mmap?
+通用知识点：
+mmap 或者普通io
+log使用普通io的形式目的时通用性，数据存入磁盘的可靠性级别、
+app层级调用了io的write，但是这个时候指到达了内核，性能快，但丢数据
+只有NIO的filechannel,你调用了write()+force()才真的写道磁盘，性能极低的
+1，每条都force
+2.只是write基于内核刷写机制，靠脏页
+
+
+java中传统的io oio
+io.flush 是个空实现，没有物理刷盘，还是依赖内核的dirty刷盘，所以会丢东西
+
+
+kafka-dump-log.sh --files xxx.log
+kafka-dump-log.sh --files xxx.index
+现在查看这些日志文件还索引文件都还是空的内容，我们现在写一些内容，
+根据写入的分区到对应的节点再次查看数据会发现log文件的大小有变化了，
+当超过10m的索引文件时，索引文件也会变大
+（mmap也是利用脏页来刷盘）
+
+索引文件中不会每条记录都会索引记录，它是松散的，比如
+offset:54 positions:4158
+表示的就是offset是54的，在字节数组（log文件）的4158处可以读到
+
+os提供了seek方法
+os提供了sendFile方法零拷贝直接把数据给到消费端
+
+除此之外还有一个时间戳索引，里面记录了时间戳了offset的关系
+
+
+
+### 生产者，数据可靠性
+
+在生产者这边还有一个配置项
+ProducerConfig.ACKS_CONFIG
+演示0，1，-1的效果
+
+ISR是个弹性机制，而不是强硬的过半
+
+
+
+现在要做的就是让leader节点于其中的一个follwer节点通信受阻
+（可以发出去，但是回不来，阻断一个数据包的双向完整通信回路），
+观察效果，我们不能kill，不然操作系统会回收tcp资源
+阻塞通信回路可以修改路由表，比如让3到2的路由表正常，让2到3的路由表地址指向其他地方。
+这样可以把2节点踢到OSR集合中，ISR由3个节点变为2个节点，程序可以正常运行
+
+
+实验一：演示acks为0
+在node02上操作
+```text
+route -n
+ping node03
+```
+首先生产者发送消息
+在node02上执行route add -host node03的ip gw 127.0.0.1
+此时可以发现生产者还是可以正常发送消息，没有任何影响
+可以观察一下分区情况
+kafka-topics.sh --zookeeper node02:2181,node02:2181/kafka --describe --topic msb-items
+
+结论：生产者发送消息和后端的节点状态没有关系
+
+实验一：演示acks为1
+在node02上执行route del -host node03的ip
+然后生产者开始跑
+添加在node02上执行route add -host node03的ip gw 127.0.0.1
+观察生产者不受影响
+观察分区情况。ISR少了一个节点2
+
+结论：生产者发送消息没有影响
+
+实验三.演示acks为-1的场景
+为-1表示的是leader必须等到所有的follwer节点同步完成在返回确认给生产者，
+先恢复环境
+在node02上执行route del -host node03的ip
+生产者开始跑数据，观察一直在跑
+然后添加在node02上执行route add -host node03的ip gw 127.0.0.1
+生产者此时会卡住大约10秒后就会又开始正常跑。
+
+结论：生产者发送消息时会卡，卡的过程其实就是剔除node02到OSR集合的过程，剔除后，
+ISR集合中1和3接收到数据反馈后就会开始正常的流程了
+
+
+### 时间戳，自定义消费数据
+
+
+
+
+
+
+
 
 
 
