@@ -50,3 +50,7 @@ $ sc -d *UserController | grep classLoaderHash
  
  $ redefine /tmp/com/example/demo/arthas/user/UserController.class
  redefine success, size: 1
+ 
+
+
+

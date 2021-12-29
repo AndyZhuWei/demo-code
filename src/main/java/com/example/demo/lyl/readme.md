@@ -74,7 +74,18 @@ cluster-node-timeout 15000
 appendonly yes
 其余节点类似
 
-10.
+（ansible运维工具很不错，用脚本可以自动执行这些配置）
+10.启动
+redis-server /data/redis-5.0.5/cluster/7000/redis.conf
+redis-server /data/redis-5.0.5/cluster/7001/redis.conf
+redis-server /data/redis-5.0.5/cluster/7002/redis.conf
+redis-server /data/redis-5.0.5/cluster/7003/redis.conf
+redis-server /data/redis-5.0.5/cluster/7004/redis.conf
+redis-server /data/redis-5.0.5/cluster/7005/redis.conf
+
+存疑
+redis-cli -a Redis123 --cluster create 10.0.0.60:7000 10.0.0.60:7001 10.0.0.60:7002 10.0.0.60:7003
+10.0.0.60:7004 10.0.0.60:7005 --cluster-replicas 1
 
 
 

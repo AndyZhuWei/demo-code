@@ -197,6 +197,8 @@ ${load%\,*}则是从右边开始，过滤掉不需要的逗号。接下来便是
 
 
 
+grep 'anxin.save.status:2' log-info-2021-03-02* | awk -F "anxin.save.status:2-" '{ print $2 }' | awk -F '"policyNo":' '{ print $2 }' | awk -F ',' '{ print $1 }' >> policy_no2.0303
+
 
 
 

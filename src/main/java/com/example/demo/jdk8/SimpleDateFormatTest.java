@@ -55,19 +55,19 @@ public class SimpleDateFormatTest {
             service.execute(() -> {
                 for (int j = 0; j < 10; j++) {
 
-                  /*  try {*/
-                       /* System.out.println(parse(
-                                "2018-01-02 09:45:59"));*/
+                   try {
+                        System.out.println(parse(
+                                "2018-01-02 09:45:59"));
 
-                      /*  System.out.println(ThreadLocalSimpleDateFormat.threadLocal.get().parse("2018-01-02 09:45:59"));*/
+                       // System.out.println(ThreadLocalSimpleDateFormat.threadLocal.get().parse("2018-01-02 09:45:59"));*/
 
-                        System.out.println(parse2("2018-01-02 09:45:59"));
+                       // System.out.println(parse2("2018-01-02 09:45:59"));
 
-                   /* } catch (ParseException e) {
+                   } catch (ParseException e) {
 
                         e.printStackTrace();
 
-                    }*/
+                    }
                 }
             });
         }

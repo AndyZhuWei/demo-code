@@ -1,6 +1,7 @@
 package com.example.demo.nio;
 
 import java.io.*;
+import java.nio.channels.FileChannel;
 
 /**
  * @Author: zhuwei
@@ -18,4 +19,5 @@ public class FileTest {
         }
 
     }
+
 }
