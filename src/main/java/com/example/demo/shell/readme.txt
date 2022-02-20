@@ -202,6 +202,13 @@ grep 'anxin.save.status:2' log-info-2021-03-02* | awk -F "anxin.save.status:2-" 
 
 
 
+## 写入内容到文件daemon.json中
+sudo tee /etc/docker/daemon.json <<-'EOF'
+{
+  "registry-mirrors": ["https://yq65jq7k.mirror.aliyuncs.com"]
+}
+EOF
+
 
 
 

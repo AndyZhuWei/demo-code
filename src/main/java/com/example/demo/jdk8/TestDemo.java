@@ -23,21 +23,21 @@ public class TestDemo {
     public static void main(String[] args) {
 //        IMessage msg = new MessageImpl();
 //        msg.fun();//此方法是在接口里面直接定义的
-       // IMessage.get();
+//        IMessage.get();
 
         //实际上整个代码之中，如果是fun()方法，最终需要的只是一个输出而已，
         //但是由于Java的开放结构性完整要求所以不得不在这个核心的语句上嵌套更多的内容。
         //
-      /* fun(new IMessage(){
-            @Override
-            public void print() {
-                System.out.println("Hello World!");
-            }
-        });*/
+//       fun(new IMessage(){
+//            @Override
+//            public void print() {
+//                System.out.println("Hello World!");
+//            }
+//        });
 
         //以上的做法要求的实在是过于严谨了，所以在JDK1.8时代引入了函数式的编程，可以简化以上的代码
         // 使用Lamda表达式
-       // fun(()->System.out.println("Hello World!"));
+        fun(()->System.out.println("Hello World!"));
 
         //首先要定义此处表达式里面需要接收变量，单行语句直接进行输出
         //fun((s)-> System.out.println(s));
@@ -87,7 +87,7 @@ public class TestDemo {
 //        Consumer<String> cons2 = System.out :: println;
 //        cons2.accept("Hello World!");
 //        //供给型接口
-//        Supplier<String> sup = "hello" :: toUpperCase;
+          Supplier<String> sup = "hello" :: toUpperCase;
 //        System.out.println(sup.get());
 //        //断言型接口
 //        Predicate<String> pre = "hello" :: equalsIgnoreCase;
@@ -97,24 +97,24 @@ public class TestDemo {
 
         //获取stream
         //1.数组
-        String[] arr = new String[]{"ab","cd","ef"};
-        Stream<String> arrStream = Arrays.stream(arr);
+    //    String[] arr = new String[]{"ab","cd","ef"};
+     //   Stream<String> arrStream = Arrays.stream(arr);
         //2.集合
-        List<String> list = Arrays.asList("ab","cd","ef");
-        Stream<String> colStream = list.stream();
+   //     List<String> list = Arrays.asList("ab","cd","ef");
+   //     Stream<String> colStream = list.stream();
         //3.值
-        Stream<String> stream = Stream.of("ab","cd","ef");
+    //    Stream<String> stream = Stream.of("ab","cd","ef");
 
         //stream方法使用
-        List<User> listUser = Arrays.asList(
-                new User("张三",11),
-                new User("王五",20),
-                new User("王五",91),
-                new User("张三",8),
-                new User("李四",44),
-                new User("李四",44),
-                new User("李四",44)
-        );
+//        List<User> listUser = Arrays.asList(
+//                new User("张三",11),
+//                new User("王五",20),
+//                new User("王五",91),
+//                new User("张三",8),
+//                new User("李四",44),
+//                new User("李四",44),
+//                new User("李四",44)
+//        );
         //1.forEach() 使用该方法迭代流中的每个数据
 //        // java 8 前
 //        System.out.println("java 8 前");

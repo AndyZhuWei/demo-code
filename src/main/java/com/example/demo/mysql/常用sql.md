@@ -19,6 +19,14 @@ CONCAT(str1,str2,…)：返回结果为连接参数产生的字符串
 LEFT(str,len)：返回从字符串str 开始的len 最左字符
 RIGHT(str,len)：从字符串str 开始，返回最右len 字符
 
+##mysql
+中间6位脱敏(从第7位开始，替换6位)
+insert(id_number,7,6,'*****')
+
+
+
+
+
 
 #去重
 按照phone和activity_id唯一性去重，重复的数据按照id的最大值来选择。
