@@ -5,6 +5,9 @@ stat xxx.txt 查看文件详细信息
 ln xxx ddd.txt 硬链接
 ln -s xxx ddd.txt 软链接
 
+硬链接： 与普通文件没什么不同，inode 都指向同一个文件在硬盘中的区块
+软链接： 保存了其代表的文件的绝对路径，是另外一种文件，在硬盘上有独立的区块，访问时替换自身路径
+
 演示一个例子
 1 创建一个空目录 mkdir zhuwei
 2 创建设备文件 dd if=/dev/zero of=mydisk.img bs=1048576 count=100

@@ -56,3 +56,25 @@ update  set a.ADDRESS=a.USER_NAME||'-'||a.IDCARD_NUM,a.USER_NAME=c.USER_NAME,a.I
 
 
 
+
+## 分组统计
+select a.id 批次号,a.customer_name 机构名称,a.product_name 产品名称,a.enddate 激活有效期,
+sum(case
+when  b.delete_flag=0 then
+1
+else
+0
+end) 数量,
+case when a.card_issue_type=2 then '通用'
+when a.card_issue_type=1 then '导入'
+when a.card_issue_type=0 then '手动填写'
+else '异常' end  卡号生成方式 ,a.card_prefix 卡号前缀,to_char(a.startdate,'yyyy-mm-dd')||'~'||to_char(a.enddate,'yyyy-mm-dd') 卡服务期,a.create_time 制卡时间,       sum(case
+when b.is_active=1 and b.delete_flag=0 then
+1
+else
+0
+end) 已激活数量
+from card_issue a left join card b on a.id=b.ciid where a.product_name like '%CAR-T%'  and a.delete_flag=0 and a.card_prefix not like 'test%'
+group by a.id,a.customer_name,a.product_name,a.enddate,a.card_issue_type,a.card_prefix,to_char(a.startdate,'yyyy-mm-dd')||'~'||to_char(a.enddate,'yyyy-mm-dd'),a.create_time
+
+
