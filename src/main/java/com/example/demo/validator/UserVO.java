@@ -5,7 +5,6 @@ import org.hibernate.validator.constraints.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.testng.annotations.BeforeClass;
 
 import javax.validation.ConstraintViolation;
 import javax.validation.Validation;

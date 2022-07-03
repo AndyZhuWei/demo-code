@@ -37,6 +37,24 @@ select activity_id from red_cell_activity_config
 GROUP BY a.phone,a.activity_id
 )
 
+
+#按部分字段进行去重
+select nu,state,ftime from (
+select a.sort,trim(a.sn),b.state,b.nu,c.ftime from sn_temp20220601 a
+left join kuaidi100_last_result b on trim(a.sn)=b.nu
+left join kuaidi100_last_result_data c on b.id=c.last_result_id
+) a where (a.nu,a.ftime) in (
+select b.nu,max(c.ftime) from sn_temp20220601 a
+left join kuaidi100_last_result b on trim(a.sn)=b.nu
+left join kuaidi100_last_result_data c on b.id=c.last_result_id
+group by b.nu
+
+)
+order by sort
+
+
+
+
 #关联更新
 
 merge into activation_temp a

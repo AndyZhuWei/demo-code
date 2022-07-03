@@ -1,4 +1,25 @@
-#虚拟文件系统
+#虚拟文件系统，文件描述符，IO重定向
+
+##操作系统宏观介绍
+
+VFS树
+FD
+inode id
+pageCache 4k
+dirty 脏
+flush
+
+##虚拟文件系统
+
+![img_1.png](img_1.png)
+
+开机后通过引导程序加载操作系统内核，其他成功启动后则挂载3号磁盘内容到根目录下，
+为了后边可以看到1号磁盘中的内容，则重新挂载了1号磁盘内容到/boot下了。
+
+
+
+
+
 拷贝多个文件
 cp /lib64/{xxxmxxm,mmmm,mmmmfefd} ./lib64
 stat xxx.txt 查看文件详细信息
@@ -7,6 +28,8 @@ ln -s xxx ddd.txt 软链接
 
 硬链接： 与普通文件没什么不同，inode 都指向同一个文件在硬盘中的区块
 软链接： 保存了其代表的文件的绝对路径，是另外一种文件，在硬盘上有独立的区块，访问时替换自身路径
+
+只要是链接修改其中任何一方，另一个都会变化。如果删除硬链接中的1个，另一个不受影响。软链接删除原文件，另一个会访问不到。
 
 演示一个例子
 1 创建一个空目录 mkdir zhuwei
@@ -41,33 +64,76 @@ docker是一个容器，是一个虚幻的东西。里面跑的是进程。
 有镜像文件后才有容器概念，镜像在磁盘中就是image，要先挂载，切换根目录
 读取进程中的执行文件，在准备命名空间。最后跑在命名空间中。这源于整个虚拟文件系统的支持。
 
+## 文件描述符nodeid，脏读
+
 ###显示进程打开了哪些文件
 lsof -p $$ 打开当前进程打开了哪些文件
+![img.png](img.png)
+其中 FD就是文件描述符
+
+cwd：当前工作目录
+
+rtd: root根目录在哪
+
+txt: 文本域，当前进程启动时所加载的程序代码段
+
+mem: 分配的内存空间，用mmap挂载一些文件时也会出现
+
+0u/1u/2u: 这些是每个程序都会有的，0表示标准输入 1表示标准输出 2表示报错输出
+
+
+演示：
+
+![img_2.png](img_2.png)
+
 exec 8< ooxx.txt 用8读取ooxx.txt文件内容
-这样在打开lsof -p $$就可以看到相应的文件描述符8了且FD那列是8r 这个r表示的就是读取 TYPE
-那一列就是REG表示普通文件
+
+cd /proc/$$/fd 查看当前进程打开的文件描述符
+
+这样在打开lsof -p $$就可以看到相应的文件描述符8了且FD那列是8r 
+这个r表示的就是读取 TYPE那一列就是REG表示普通文件 u表示读写都可以
+
+8,3中的3表示的根目录的第三分区
+
 lsof -op $$ 可以输出偏移量
 
+![img_3.png](img_3.png)
 
-#文件描述符
+刚打开的文件偏移量就是0，node就是文件(ooxx.txt)的nodeId
+通过stat就可以验证
+
+###文件描述符
 文件描述符就是描述你打开文件的一些信息，偏移量 类型 位置 node号 设备等
+
+![img_4.png](img_4.png)
 
 read a 0<& 8 用read程序读取文件描述符8的内容，0表示read程序的标准输入，read读取到换行符就不继续读取了
 此时在观察losf -op $$时发现文件描述符8的偏移量就不是0了
+![img_5.png](img_5.png)
 如果用其他程序打开相同的文件，各个程序中的fd会维护自己的偏移量。文件的内容在内存中时一份的
 
 
-dd if/dev/sda3 of=~/back.img 将物理硬盘sda3分区进行备份
+dd if /dev/sda3 of=~/back.img 将物理硬盘sda3分区进行备份
 
 cat /proc/vmstat | grep dirty 查询脏页
 
 exec 3> andy.txt 创建一个写文件描述符
+
 此时查询脏页 发现没有
-如果我们写入一些东西到3号文件描述符
-echo '234324' >& 3
+
+如果我们写入一些东西到3号文件描述符 echo '234324' >& 3
+
 此时在查看发现有了脏页数据
-查询刷新脏页的阈值
-sysctl -a | grep dirty
+
+查询刷新脏页的阈值 sysctl -a | grep dirty
+
+![img_6.png](img_6.png)
+
+![img_7.png](img_7.png)
+
+一切皆文件，socket也可以用文件描述符来描述
+
+
 
 /proc 映射的内核的一些变量属性，开机后里面才有内容
 $$ 当前bash的pid
@@ -82,11 +148,32 @@ ls ./ /xxx 1> ls01.out 2> ls03.out
 ls ./ /xxx 2>& 1 1> ls04.out 这里需要注意的是如果1前边的&符号，这样做的目的就是说&后边接的1是文件描述符，否则就会被当作是1文件了
 ls ./ /xxx  1> ls04.out 2>& 1
 
-管道 | 
+## 管道 | 
+
+head  默认读取文件前10行
+tail  默认读取文件末尾10行
+
+head -1 读取文件前1行
+tail -1 读取文件末尾1行
+
+显示中间的第8行
+head -8 xxx | tail -1
+
+### 父子进程
+
+![img_8.png](img_8.png)
+![img_9.png](img_9.png)
+
+export导出一个变量后子进程就可以读取到这个变量了。
+
+
+
 
 pstree
 
-{ echo "ssss"; echo "123123"; }
+{ echo "ssss"; echo "123123"; }  代码块，多指令执行 花括号在同一进程中执行
+
+![img_10.png](img_10.png)
 
 管道类型的文件，以下程序会用到
 { a=9; echo "adfadf"; } | cat
@@ -96,11 +183,24 @@ bash在解析以上命令时会在管道命令符左右各启动一个子进程�
 echo $$ | cat   $$优先级高于| 所以先把$$替换成父进程的PID,然后在执行|，进而开启左右两个子进程。
 echo $BASHPID | cat $BASHPID低于| 所以会开启左右两个子进程来执行
 
+![img_11.png](img_11.png)
 { echo $BASHPID; read x; } | { cat ; echo $BASHPID ; read y;} 通过这个可以看到PIPE文件类型
 
+![img_12.png](img_12.png)
 
 
-#pagecache
+
+
+
+
+## pagecache
+pageCache是操作系统内核的折中方案
+
+
+![img_15.png](img_15.png)
+
+
+
 当用户进程调用 read(fd8)会执行
 system call 系统调用 int 0x80
 其中int是cpu的指令 0x80是128。
@@ -110,6 +210,18 @@ system call 系统调用 int 0x80
 也会开辟4k的pagecache空间存储内容。
 在硬盘中其实也有缓冲区。
 DMA协处理器，可以直接让数据不经过CPU直接到内存
+
+演示操作1： 向文件中写数据，突然断电。观察数据是否写入到磁盘中（其中没有 都写入到了pageCache中了，pageCache还没来得及及刷盘）
+![img_14.png](img_14.png)
+
+这是一个程序脚本，其中OSFileIO参见代码
+
+
+
+![img_16.png](img_16.png)
+
+
+
 
 
 sysctl -a | grep dirty

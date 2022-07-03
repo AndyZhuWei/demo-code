@@ -1,11 +1,10 @@
 package com.example.demo.excel;
 
 import com.alibaba.excel.annotation.ExcelProperty;
-import com.alibaba.excel.metadata.BaseRowModel;
 
 import java.util.Date;
 
-public class StockModel extends BaseRowModel {
+public class StockModel  {
 
 
     /**

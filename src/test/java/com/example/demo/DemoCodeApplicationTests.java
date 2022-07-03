@@ -60,14 +60,6 @@ public class DemoCodeApplicationTests {
 
 
 
-	@Test
-	public void importDataToIn() throws IOException {
-
-		InputStream inputStream = new FileInputStream("D:\\Desktop\\data.xlsx");
-
-		ExcelUtil.readExcel(inputStream,new StockModel(),0,1);
-
-	}
 
 
 	@Test

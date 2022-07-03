@@ -1,49 +1,98 @@
 package com.example.demo.excel;
 
 
-import com.alibaba.excel.ExcelReader;
-import com.alibaba.excel.metadata.BaseRowModel;
-import com.alibaba.excel.metadata.Sheet;
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.read.listener.PageReadListener;
+import com.alibaba.excel.util.StringUtils;
+import com.alibaba.fastjson.JSONObject;
+import org.assertj.core.util.Lists;
 
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ExcelUtil {
 
-    /**
-     * @description
-     * @author yangyun
-     * @date 2019/3/19 0019
-     * @param excel 上传excel 文件
-     * @param rowModel 对应实体对象
-     * @param sheetNo 解析开始行, 有表头的情况从第一行开始
-     * @return java.util.List<java.lang.Object>
-     */
-    public static List<Object> readExcel(InputStream file, BaseRowModel rowModel, int sheetNo) throws IOException {
-        return readExcel(file, rowModel, sheetNo, 1);
-    }
+    public static void main(String[] args) throws FileNotFoundException {
 
-    public static List<Object> readExcel(InputStream file, BaseRowModel rowModel, int sheetNo, int headLineNum) throws IOException {
-        ExcelListener excelListener = new ExcelListener();
-        ExcelReader reader = getReader(file, excelListener);
-        if (reader == null) {
-            return null;
-        }
-        reader.read(new Sheet(sheetNo, headLineNum, rowModel.getClass()));
-       // return excelListener.getDatas();
-        return null;
-    }
 
-    public static ExcelReader getReader(InputStream file, ExcelListener excelListener) throws IOException{
-        //String fileName = excel.getOriginalFilename();
-//        if (fileName == null || !(fileName.toLowerCase().endsWith(".xls") || fileName.toLowerCase().endsWith(".xlsx") || fileName.toLowerCase().endsWith(".xlsm"))){
-//            throw new ErpException(CommonConstant.FAIL_CODE, "文件格式错误");
-//        }
+        Map<String,Area> mapArea = new HashMap<>();
+        Map<String,Province> mapProvince = new HashMap<>();
 
-        InputStream is = new BufferedInputStream(file);
 
-        return new ExcelReader(is, null, excelListener, false);
+
+        List<Area> listArea = Lists.newArrayList();
+        String fileName = "D:\\Desktop\\急救中心合作列表 (1).xlsx";
+        EasyExcel.read(fileName,Data.class, new PageReadListener<Data>(dataList -> {
+            for (Data data : dataList) {
+                String area = data.getArea();
+                String city = data.getCity();
+                String aidCenterName = data.getAidCenterName();
+                String level = data.getLevel();
+
+                //处理区域
+                boolean newArea = true;
+                Area areaC = null;
+                if(StringUtils.isBlank(area)) {
+                    areaC = listArea.get(listArea.size()-1);
+                    newArea = false;
+                } else {
+                    areaC = new Area();
+                    areaC.setAreaId(data.getNo());
+                    areaC.setArea(area);
+//                    mapArea.put(area,areaC);
+                    listArea.add(areaC);
+
+                }
+                //处理省
+                List<Province> listProvince = null;
+                if(newArea) {
+                    listProvince = Lists.newArrayList();
+                    areaC.setProvince(listProvince);
+                } else {
+                    listProvince = areaC.getProvince();
+                }
+
+
+                Province provinceC = null;
+                List<String> cityList = null;
+                String province = data.getProvince();
+                if(StringUtils.isBlank(province)) {
+                    provinceC = listProvince.get(listProvince.size()-1);
+                    cityList = provinceC.getCityList();
+                } else {
+                    provinceC = new Province();
+                    provinceC.setValue(province);
+                    cityList = new ArrayList<>();
+                    provinceC.setCityList(cityList);
+//                    mapProvince.put(province,provinceC);
+                    listProvince.add(provinceC);
+
+
+                }
+                cityList.add(city);
+
+
+                //处理急救中心
+                List<Aid> aidCenter = areaC.getAidCenter();
+                if(aidCenter == null) {
+                    aidCenter = Lists.newArrayList();
+                    areaC.setAidCenter(aidCenter);
+                }
+                Aid aid = new Aid();
+                aid.setName(aidCenterName);
+                aid.setLocal("");
+                aid.setCity(city);
+                aid.setCityLevel(level);
+                aidCenter.add(aid);
+
+            }
+        })).sheet().doRead();
+
+        //得到listArea数据
+        String s = JSONObject.toJSONString(listArea);
+        System.out.println(s);
     }
 }
