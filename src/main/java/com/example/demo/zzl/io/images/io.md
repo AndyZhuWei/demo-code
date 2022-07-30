@@ -222,6 +222,21 @@ DMA协处理器，可以直接让数据不经过CPU直接到内存
 
 
 
+![img_17.png](img_17.png)
+
+一个程序在物理内存空间的地址是分散的，在其中操作系统中抽象出一个虚拟内存空间的概念，此空间的地址是连续的，这个虚拟地址通过MMU映射到物理地址空间。
+
+操作系统中对程序分配空间时都是按照按需进行分配，就算是预分配也不会进行全量的分配。
+
+一个进程分配的空间中有代码段、数据、堆、栈、文件描述符。这些都是按照page 4k大小来分配的。如果缺页就会发生缺页软中断。
+
+如果是多个程序访问同一个文件，在page cache中只会保存一份，各个程序通过fd 的seek来访问。
+
+![img_19.png](img_19.png)
+
+
+
+
 
 
 sysctl -a | grep dirty
@@ -238,15 +253,22 @@ vm.dirty_expire_centisecs=30000 脏页生命周期可以存多久
 程序申请到页的时候就是脏页了，如果把脏页写到了磁盘就是脏页了，此时就会同各国LRU进行
 淘汰，如果是脏页则必须先同步到磁盘。
 
+当达到内容脏页的阈值，内核会对脏页进行持久化导磁盘，持久化后缓存还是在，如果pagecache不够用了，
+就会通过LRU算法进行淘汰，淘汰时如果是脏页，则会先进行持久化在淘汰
+
+
 pcstat out.txt 这个命令可以查询out.txt被pageCache缓存的状态
 
 
 pagecache是优化IO性能，缺点就是会丢失数据
 
 程序中的线性的逻辑地址需要通过CPU的MMU进行解析，解析成page物理内存映射表的的地址进行访问
-#文件系统的IO
+
+
+###文件系统的IO
 
 通过家目录中的mysh脚本进行演示
+
 ll -h && pcstat out.txt 通过输出观察页缓存的情况
 
 在mysh脚本中有一个追踪代码执行的命令strace 
@@ -255,18 +277,57 @@ rm -rf *out*
 /opt/jdk1.8/bin/javac OSFileIO.java
 strace -ff -o out /opt/jdk1.8/bin/java OSFileIO $1
 ```
-##普通写
+###普通写
 我们打开其中一个文件，有类似如下的应用程序对系统内核调用的方法
 write(4,"123456789\n",10) 这个其实就是基本写入操作调用的方法，我们在看基于buffer的io调用
-##带buffer写
+###带buffer写
 write(4,"123456789\n123456789\n".......,8910) 基于buffer的调用一次会把buffer中的数据一次写入到内核
 
-##基于byteBuffer
+###基于byteBuffer
 ByteBuffer buffer = ByteBuffer.allocate(1024); 在堆内分配
 ByteBuffer buffer = ByteBuffer.allocateDirect(1024); 在堆外分配
 
 byteBuffer的集中常用api
 flip get put compact clear
+
+
+
+![img_20.png](img_20.png)
+
+
+
+![img_21.png](img_21.png)
+
+### 堆外映射写
+
+
+![img_22.png](img_22.png)
+
+只有文件的channel上有map方法
+
+![img_23.png](img_23.png)
+
+![img_24.png](img_24.png)
+
+![img_26.png](img_26.png)
+
+
+
+
+
+
+### 总结
+
+![img_28.png](img_28.png)
+
+![img_30.png](img_30.png)
+
+![img_29.png](img_29.png)
+
+
+![img_32.png](img_32.png)
+
+
 
 ##堆外映射写
 只有文件上的Channel有map也就是FileChannel的map方法。即把文件和pageCache映射起来。
@@ -288,7 +349,19 @@ map.put("xxxx".getBytes());//不是系统调用，但是数据会到达内核的
 各IO性能
 on head < off head < mapped(file)
 
+
+
 #网络IO
+
+![img_33.png](img_33.png)
+
+![img_37.png](img_37.png)
+
+
+![img_38.png](img_38.png)
+
+![img_39.png](img_39.png)
+
 
 tcpdump -nn -i eth0 port 9090 监控网络状态
 
@@ -366,6 +439,9 @@ client.setOOBInline(false);//是不是着急把数据的第一个字节发送出
 不开启优化后，数据包会根据内核的调度能发送就立刻发送出去了
 
 ###演示keepalive
+![img_40.png](img_40.png)
+
+
 将服务器端的keepalive设置为true
 在tcp协议中，如果双方都将建立了连接，如果长时间没有发送数据包，双方怎么确认对方还活着？
 这时就出现了一个keepalive,会自动发送心跳包，来确认对方还活着
@@ -434,6 +510,9 @@ man ip
 accept(fd3,--->fd5  等阻塞过了就有一个客户端连接返回
 读取的时候recv(fd5--->
 ###BIO
+![img_41.png](img_41.png)
+
+
 在BIO时代就是主线程中阻塞在accept,建立连接后开启新线程阻塞在rece上进行数据读取
   把这两个阻塞的方法分开
   
@@ -467,10 +546,32 @@ epoll方式：该方式可以说是C10K问题的killer，他不去轮询监听�
 异步I/O以及Windows，该方式在windows上支持很好，这里就不具体介绍啦。
 
 ###演示
-通过再一个客户端中启动1w多个客户端(C10Client)的连接测试BIO的服务器端（选用SocketIOProperties），可以发现连接建立很慢。主要原因就是BIO的阻塞和创建新线程很慢。
+通过再一个客户端中启动1w多个客户端(C10Client)的连接测试BIO的服务器端（选用SocketIOProperties），可以发现连接建立很慢。
+主要原因就是BIO的阻塞和创建新线程很慢。
 阻塞的原因就是因为操作系统内核提供给我们监听连接和操作客户连接的方法是阻塞的，所以就需要操作系统进行改善。
 
+![img_42.png](img_42.png)
+发现的问题：
+查看路由表，发现有两个条目，当源地址192.168.110.100 目标地址192.168.150.11到达linux后，返回时192.168.110.100会匹配到第二个条目，
+目标地址就会被转换城192.168.150.2，当以源地址192.168.110.100，目标地址192.168.150.2返回时windows就不会认，会抛弃这个包。
+此时只需要添加一个路由条目即可
+![img_43.png](img_43.png)
+
+
+![img_44.png](img_44.png)
+
+
+BIO弊端
+![img_45.png](img_45.png)
+
+
+
 ###NIO
+![img_46.png](img_46.png)
+
+
+
+
 用服务器版本SocketNIO来进行演示
 strace -ff -o out java SocketNio
 可以发现再执行accept的时候就不会再阻塞了，而是一个线程一致再循环中执行
@@ -486,6 +587,10 @@ a.随着客户端连接越来越多，程序会变慢，主要原因是我们服
 b.执行一段时间后，系统会报以下错误
 Exception in thread "main" java.io.IOException : Too many open files
 
+
+![img_47.png](img_47.png)
+
+
 我们可以通过ulimit -a来查看系统目前设置的值
 open files                      (-n) 1024
 可以看到系统默认设置的是1024 表示一个进程可以打开多少个文件描述符(普通用户启动的进程严格首先于此，root用户会超过这个限制)
@@ -499,6 +604,9 @@ NIO比BIO快，但是NIO其实也不是很快，问题出现在哪里了？
 NIO优点：通过1个或几个线程，来解决N个IO连接的处理
 
 问题：
+
+![img_49.png](img_49.png)
+
 在NIO的时候虽然我一个线程可以解决所有事情，但是每一个操作都需要触发一个系统调用，是由软件程序主动的，无论是接收我们的客户端accept还是我们尝试读取客户端内容read，
 有读到还是没有读到这样的一个操作都是向内核调用，内核给程序反馈。如果是一个C10K的情况，则每循环一次都是一个O(n)的复杂的
 在这么多循环次数中可能有数据的仅仅是其中少数，大部分的系统调用都是浪费。
@@ -506,12 +614,18 @@ NIO优点：通过1个或几个线程，来解决N个IO连接的处理
 
 
 ###多路复用器
+
+![img_50.png](img_50.png)
+
+
 多路复用器其实是对非阻塞IO的一种延续，底层用的是epoll
 
 多路复用器就是多条路（IO）通过一个系统调用，获得其中IO状态，然后，由程序对由状态的IO进行读写
 注意：只要程序自己读写，你的IO模型就是同步的
 
 常用的IO模型组成就是：
+![img_51.png](img_51.png)
+
 同步阻塞：程序自己读取，调用方法一直等待有效返回结果
 同步非阻塞：程序自己读取，调用方法一瞬间，给出是否读到（自己要解决下一次什么时候在去读）
 
@@ -526,6 +640,15 @@ POLL
 EPOLL
 
 ###select POSIX
+
+![img_52.png](img_52.png)
+
+![img_53.png](img_53.png)
+
+![img_54.png](img_54.png)
+
+
+
 synchronous I/O multiplexing 同步的IO多路复用器
 
 select有一个FD_SETSIZE的限制 这个限制好像是1024 表示在使用select的时候只能传递1024个描述符，现在这个基本已经很少使用了
@@ -543,6 +666,9 @@ while {
 POLL和select一样但是没有1024的限制
 
 ###小总结
+![img_55.png](img_55.png)
+
+
 其实，无论NIO、SELECT、POLL都是要遍历所有的IO询问状态
 只不过，在NIO中这个遍历的过程成本在用户态和内核态的切换
 在select、poll（多路复用器-阶段1）下这个遍历的过程触发了一次系统调用，用户态内核态的切换，过程
@@ -594,6 +720,10 @@ yum install man man-pages man只是帮助命令，会有一些简单的命令用
 
 
 ###EPOLL
+
+![img_56.png](img_56.png)
+
+
 epoll其实有以下3项的系统调用
 epoll_create(2)：
 epoll_ctl(2)
@@ -625,6 +755,16 @@ fd：表示的就是你需要添加，修改和删除的文件描述符
 所以程序在未来某个时刻在调用时直接就返回了相应的文件描述符，而不需要在遍历了。
 
 epoll规避了遍历
+
+
+
+![img_57.png](img_57.png)
+
+
+
+
+![img_58.png](img_58.png)
+
 
 
 ###上层java的抽象
@@ -662,7 +802,51 @@ public void initServer() {
 
 多种模型用了一套Selector
 
+
+![img_59.png](img_59.png)
+
 epoll有一个参数值max_user_watches,允许红黑树的大小
+
+
+
+
+##POLL演示
+
+![img_61.png](img_61.png)
+
+## EPOLL演示
+
+![img_62.png](img_62.png)
+
+## 懒加载
+
+![img_63.png](img_63.png)
+
+## 写事件
+
+![img_69.png](img_69.png)
+
+
+![img_65.png](img_65.png)
+
+再单个线程中处理时不需要加key.cancel.如果时用另外的线程处理读或者写的时候，因为时延以及写事件因为有
+send-queue有空间会一直被调用。所以加了key.cancel。但有什么方法，既用多线程也可以不用key.cancel来
+频繁进行系统调用？
+
+![img_66.png](img_66.png)
+
+解决方法：
+
+![img_68.png](img_68.png)
+
+
+##  SelectorThread-IO基本架构
+
+![img_70.png](img_70.png)
+
+
+
+
 
 
 

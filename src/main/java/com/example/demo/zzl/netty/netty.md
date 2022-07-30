@@ -15,6 +15,17 @@ java -Djava.nio.channels.spi.SelectorProvider=sun.nio.ch.PollSelectorProvider So
 
 
 ###演示四次分手
+![img_1.png](img_1.png)
+
+
+![img.png](img.png)
+
+![img_2.png](img_2.png)
+
+![img_3.png](img_3.png)
+
+
+
 以下演示都使用这个程序：
 SocketMultiplexingSingleThreadv1
 ####服务器程序中不调用客户端close方法
@@ -142,6 +153,47 @@ ByteBuffer、Channel、Selector
 
 ###通过RPC的例子演示netty的使用
 参见rpc目录
+
+![img_4.png](img_4.png)
+
+![img_5.png](img_5.png)
+
+
+
+##总结Netty模型
+
+###第一种模型
+
+![img_6.png](img_6.png)
+
+### 第二种模型
+
+![img_7.png](img_7.png)
+
+![img_8.png](img_8.png)
+
+
+### 第三种模式
+
+![img_9.png](img_9.png)
+
+
+## IO密集型和内核
+
+![img_10.png](img_10.png)
+
+
+![img_11.png](img_11.png)
+
+
+![img_12.png](img_12.png)
+
+![img_13.png](img_13.png)
+
+![img_14.png](img_14.png)
+
+![img_15.png](img_15.png)
+
 
 
 
