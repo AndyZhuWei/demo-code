@@ -1,18 +1,28 @@
 # mysql日志
 ## 分类
 binlog:二进制日志，归档日志
+
 redolog: 
+
 undolog:
 
-对于MySql server中存在的时binlog
+对于MySql server中存在的是binlog
+
 对于存储引擎存储的是redolog和undolog
+
 说日志的时候必须要清楚哪个日志归属哪个层次
 
+
 事务的ACID底层是通过什么来保证的？
+
 原子性是通过undolog日志来保证的
+
 持久化特性就是通过redolog日志来保证的
+
 隔离性是通过锁机制
+
 一致性则是通过以上3个来保证的
+
 
 
 
@@ -22,12 +32,13 @@ undolog:
 * Redolog是固定大小的，是循环写的过程
 * 有了redolog之后，innodb就可以保证即使数据库发生异常重启，之前的记录也不会丢失，叫做
   crash-safe
+  
 WAL:(write ahead log 预写日志) 提高性能
 
 疑惑：
 既然要避免io，为什么写redo log的时候不会造成io的问题？
 ![redo_log](D:\IT\demo-code\src\main\java\com\example\demo\lpj\redo_log.png)
-写redo log时顺序写的过程
+写redo log是顺序写的过程
 
 innodb_flush_log_at_trx_commit：能够控制事务提交时，刷redo log的策略。
 
@@ -73,7 +84,7 @@ innodb_flush_log_at_trx_commit=2
 ```
 
 ###Undo log（也可以叫回滚日志）
-*Undo log是为了实现事务的原子性，在MySql数据库InnoDB存储引擎中，还用Undo Log来实现多版本并发控制（简称：MVCC）
+* Undo log是为了实现事务的原子性，在MySql数据库InnoDB存储引擎中，还用Undo Log来实现多版本并发控制（简称：MVCC）
 * 在操作任何数据之前，首先将数据备份到一个地方（这个存储数据备份的地方称为Undo Log）.任何进行数据的修改。
   如果出现了错误或者用户执行了ROLLBACK语句，系统可以利用Undo log中的备份将数据恢复到事务开始之前的状态
 * 注意：undo log是逻辑日志，可以理解为：
@@ -82,10 +93,13 @@ innodb_flush_log_at_trx_commit=2
   -当update一条记录时，它记录一条对应相反的update记录
 
 ###binlog--服务端的日志文件
-*Binlog是Server层的日志，主要做mysql功能层面的事情
-*与redo日志的区别：
+* Binlog是Server层的日志，主要做mysql功能层面的事情
+* 与redo日志的区别：
+  
   -1.redo是innodb存储独有的，binlog是所有存储引擎都可以使用的
+  
   -2.redo是物理日志，记录的是在某个数据页上做了什么修改，binlog是逻辑日志，记录的是这个语句的原始逻辑
+  
   -3.redo是循环写的，空间会用完，binlog是可以追加写的，不会覆盖之前的日志信息
   
 binlog日志默认是不开启的

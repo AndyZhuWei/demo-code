@@ -32,6 +32,8 @@ jad反编译代码
 反编译UserController，保存到 /tmp/UserController.java文件里。
 
 jad --source-only com.example.demo.arthas.user.UserController > /tmp/UserController.java
+
+jad --source-only com.healthlink.bbs.business.pmforward.service.PmForwardNew
 修改反编译出来的代码
 sc查找加载UserController的ClassLoader
 $ sc -d *UserController | grep classLoaderHash

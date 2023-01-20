@@ -96,3 +96,61 @@ from card_issue a left join card b on a.id=b.ciid where a.product_name like '%CA
 group by a.id,a.customer_name,a.product_name,a.enddate,a.card_issue_type,a.card_prefix,to_char(a.startdate,'yyyy-mm-dd')||'~'||to_char(a.enddate,'yyyy-mm-dd'),a.create_time
 
 
+#太平重疾流转信息查询sql
+select
+
+                wsd.sheet_id as "sheetId",
+              
+                wsd.process_name as "processName",
+             
+            
+                wsd.product_name as "productName",
+                wsd.member_name as "leaguerName",
+				wsd.patient_name as "patientName",
+                province.region_name as "province",
+                city.region_name as "city",
+				map.service_type_name as "serviceType",
+			map.service_type,
+				
+				wsd.hospital_name as "hospitalName",
+                date_format( wsd.create_time, '%Y-%m-%d %H:%i:%s' ) as "createTime",
+                dict.name as "status",
+                date_format( wsd.settlement_operate_time, '%Y-%m-%d %H:%i:%s' ) as "settlementOperateTime",
+               
+                wsd.leaguer_id as "leaguerId",
+								wsd.reserve_order_no,
+								wsd.section_area,
+								wao.operation_content,
+								wao.process_name,
+								wao.process_key,
+								wao.create_time
+								
+            from
+                ebs_ws_severe_disease wsd
+                left join sys_dictionary dict on dict.node_id = wsd.status
+				left join ebs_service_type_mapping map on map.service_type = wsd.service_type
+				and wsd.severe_disease_type = map.parent_id
+				left join ebs_region province on province.id = wsd.province
+                left join ebs_region city on city.id = wsd.city
+                left join sys_dictionary feeBelong on feeBelong.node_id = wsd.fee_belonging
+								left join ebs_ws_severe_disease_operation wao  on wao.sheet_id = wsd.sheet_id
+            where
+                wsd.delete_flag = 0
+								and wsd.service_type='E0713'    
+			           and product_id in (
+										'ff8080816df356b8016f12f9fdca2073',
+'ff8080816df356b8016e169fb53d0486',
+'ff8080816df356b8016f1310ceb620b8',
+'ff80808172bcca0b01739e38a4512f10',
+'ff808081761e47e4017665538faa0664',
+'ff8080817743f2e10177f6b3078114c9',
+'ff8080817bcb3121017c113c65210b75',
+'ff808081785e101f0178819dde650684',
+'ff80808183780c010183e49e2baa2e26'
+
+
+								 )										
+							  and wsd.create_time >= str_to_date( '2022-11-01 00:00:00', '%Y-%m-%d %H:%i:%s' )
+                and wsd.create_time <= str_to_date( '2022-11-23 23:59:59', '%Y-%m-%d %H:%i:%s' )
+              
+                order by wsd.sheet_id asc,wao.create_time
