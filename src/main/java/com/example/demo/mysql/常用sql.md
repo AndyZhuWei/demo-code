@@ -74,6 +74,17 @@ update  set a.ADDRESS=a.USER_NAME||'-'||a.IDCARD_NUM,a.USER_NAME=c.USER_NAME,a.I
 
 
 
+##mysql关联更新
+update product a1
+inner join product_temp20230227 a2
+on a1.product_id=a2.product_code
+set a1.project_code=a2.project_code,a1.project_name=a2.project_name,
+a1.project_owner=a2.project_owner,a1.project_type=a2.name
+where a1.project_type is null
+
+
+
+
 
 ## 分组统计
 select a.id 批次号,a.customer_name 机构名称,a.product_name 产品名称,a.enddate 激活有效期,
@@ -154,3 +165,18 @@ select
                 and wsd.create_time <= str_to_date( '2022-11-23 23:59:59', '%Y-%m-%d %H:%i:%s' )
               
                 order by wsd.sheet_id asc,wao.create_time
+
+
+
+## 激活数据提取
+select card_num 卡号,project_code 营销员项目编码,crm_project_code 产品项目编码,product_id 产品编码,
+product_name 产品名称,company_name 支公司名称,username 客户姓名,mobile 手机号,idcard_num 证件号码,
+sales_man 营销员姓名,sales_no 营销员工号,create_time 激活时间,start_date 服务开始时间,end_date 服务截止时间,
+CASE WHEN openid = 'unbind' AND (mobile IS NULL OR LENGTH(trim(mobile)) = 0)
+THEN '代人' ELSE '本人' END 激活类型
+from card_activation
+where DATE_FORMAT(create_time,'%Y-%m-%d') >= '2022-05-20'
+and company_name='东莞市公司'
+
+
+

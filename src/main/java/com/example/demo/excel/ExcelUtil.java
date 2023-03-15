@@ -24,7 +24,7 @@ public class ExcelUtil {
 
 
         List<Area> listArea = Lists.newArrayList();
-        String fileName = "D:\\Desktop\\急救中心合作列表 (1).xlsx";
+        String fileName = "D:\\Desktop\\data.xlsx";
         EasyExcel.read(fileName,Data.class, new PageReadListener<Data>(dataList -> {
             for (Data data : dataList) {
                 String area = data.getArea();

@@ -53,6 +53,32 @@ $ sc -d *UserController | grep classLoaderHash
  $ redefine /tmp/com/example/demo/arthas/user/UserController.class
  redefine success, size: 1
  
+###观察方法入参
+watch com.healthlink.hbs.business.productMember.controller.ProductMemberController getMemberByPmid '{params,returnObj}' -X 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
